@@ -10,6 +10,7 @@ import BookCourt from './pages/member/BookCourt.jsx';
 import MemberBookings from './pages/member/Bookings.jsx';
 import MemberMembership from './pages/member/Membership.jsx';
 import MemberShop from './pages/member/Shop.jsx';
+import MemberCafeOrders from './pages/member/CafeOrders.jsx';
 import MemberProfile from './pages/member/Profile.jsx';
 
 import AdminDashboard from './pages/admin/Dashboard.jsx';
@@ -18,7 +19,7 @@ import AdminInventory from './pages/admin/Inventory.jsx';
 import AdminOperations from './pages/admin/Operations.jsx';
 import AdminKitchen from './pages/admin/Kitchen.jsx';
 
-const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'profile'];
+const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'cafe-orders', 'profile'];
 const ADMIN_ROUTES = ['admin-dashboard', 'admin-courts', 'admin-inventory', 'admin-operations', 'admin-kitchen', 'admin-settings'];
 
 function getRouteFromPath(pathname) {
@@ -33,6 +34,7 @@ function getRouteFromPath(pathname) {
   if (p === '/bookings') return 'bookings';
   if (p === '/membership') return 'membership';
   if (p === '/shop') return 'shop';
+  if (p === '/cafe-orders' || p === '/member/cafe-orders') return 'cafe-orders';
   if (p === '/profile') return 'profile';
   if (p === '/admin' || p === '/admin-dashboard') return 'admin-dashboard';
   if (p === '/admin/courts' || p === '/admin-courts') return 'admin-courts';
@@ -161,11 +163,11 @@ export default function App() {
   };
 
   const renderMember = () => {
-    let content;
     if (route === 'book') content = <BookCourt navigate={navigate} />;
     else if (route === 'bookings') content = <MemberBookings navigate={navigate} />;
     else if (route === 'membership') content = <MemberMembership navigate={navigate} />;
     else if (route === 'shop') content = <MemberShop navigate={navigate} />;
+    else if (route === 'cafe-orders') content = <MemberCafeOrders navigate={navigate} />;
     else if (route === 'profile') content = <MemberProfile navigate={navigate} />;
     else content = <MemberHome navigate={navigate} />;
 
@@ -216,7 +218,8 @@ export default function App() {
 
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Club</div>
-            <SidebarButton path="shop" label="Shop" />
+            <SidebarButton path="shop" label="Shop & Café" />
+            <SidebarButton path="cafe-orders" label="My Café Orders" />
           </div>
 
           <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>

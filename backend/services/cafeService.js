@@ -15,6 +15,52 @@ const VALID_TRANSITIONS = {
 };
 
 /**
+ * Helper to identify Café & Kitchen products
+ */
+export const isCafeProduct = (category) => {
+  const cat = (category || '').toLowerCase().trim();
+  return (
+    cat.includes('café') ||
+    cat.includes('cafe') ||
+    cat.includes('drink') ||
+    cat.includes('nutrition') ||
+    cat.includes('food') ||
+    cat.includes('beverage') ||
+    cat.includes('panini') ||
+    cat.includes('bowl') ||
+    cat.includes('snack')
+  );
+};
+
+// Resilient priority tracker ensuring priority is maintained both before & after DB migration
+const memoryPriorityOverrides = new Map();
+
+function getEffectivePriority(orderId, dbPriority) {
+  if (dbPriority) return dbPriority;
+  if (memoryPriorityOverrides.has(orderId)) {
+    return memoryPriorityOverrides.get(orderId);
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const overrides = JSON.parse(window.localStorage.getItem('kinesis_order_priorities') || '{}');
+      if (overrides[orderId]) return overrides[orderId];
+    } catch (e) {}
+  }
+  return 'NORMAL';
+}
+
+function setPriorityOverride(orderId, priority) {
+  memoryPriorityOverrides.set(orderId, priority);
+  if (typeof window !== 'undefined') {
+    try {
+      const overrides = JSON.parse(window.localStorage.getItem('kinesis_order_priorities') || '{}');
+      overrides[orderId] = priority;
+      window.localStorage.setItem('kinesis_order_priorities', JSON.stringify(overrides));
+    } catch (e) {}
+  }
+}
+
+/**
  * 1. Create a Café-Bar Order
  * - Validates cart is not empty
  * - Validates product existence and available stock
@@ -24,7 +70,9 @@ const VALID_TRANSITIONS = {
  * - Deducts product stock EXACTLY ONCE
  * - Records sales revenue in sales table EXACTLY ONCE
  */
-export async function createCafeOrder({ memberId = null, items = [] }) {
+export async function createCafeOrder({ memberId = null, items = [], priority = 'NORMAL' }) {
+  const safePriority = String(priority).toUpperCase() === 'URGENT' ? 'URGENT' : 'NORMAL';
+
   // Step 1: Validate member
   let member = null;
   const mId = memberId ? Number(memberId) : null;
@@ -97,6 +145,7 @@ export async function createCafeOrder({ memberId = null, items = [] }) {
     discount_amount: discountAmount,
     total: finalTotal,
     status: 'NEW',
+    priority: safePriority,
     created_at: new Date().toISOString()
   };
 
@@ -104,14 +153,31 @@ export async function createCafeOrder({ memberId = null, items = [] }) {
 
   if (shouldUseSupabase()) {
     try {
+      let insertedOrder = null;
       const { data, error } = await supabase
         .from('cafe_orders')
         .insert([orderRecord])
         .select()
         .single();
 
-      if (error) throw error;
-      createdOrder = data;
+      if (error) {
+        // Fallback if priority column has not been migrated on remote Supabase yet
+        if (error.code === '42703' || String(error.message || '').includes('priority')) {
+          const { priority: _omit, ...recordWithoutPriority } = orderRecord;
+          const { data: fbData, error: fbError } = await supabase
+            .from('cafe_orders')
+            .insert([recordWithoutPriority])
+            .select()
+            .single();
+          if (fbError) throw fbError;
+          insertedOrder = { ...fbData, priority: safePriority };
+        } else {
+          throw error;
+        }
+      } else {
+        insertedOrder = data;
+      }
+      createdOrder = insertedOrder;
 
       // Step 10: Insert order line items into cafe_order_items
       const orderItemsRecords = preparedItems.map((item) => ({
@@ -128,6 +194,8 @@ export async function createCafeOrder({ memberId = null, items = [] }) {
         .select();
 
       if (itemsError) throw itemsError;
+
+      setPriorityOverride(createdOrder.id, safePriority);
 
       // Step 11 & 12: Record revenue in 'sales' and deduct stock EXACTLY ONCE
       // Architecture Note for Technical Jury:
@@ -180,6 +248,7 @@ export async function createCafeOrder({ memberId = null, items = [] }) {
   createdOrder = {
     id: maxOrderId + 1,
     ...orderRecord,
+    priority: safePriority,
     members: member ? { id: member.id, name: member.name, email: member.email } : null
   };
 
@@ -254,7 +323,19 @@ export async function getKitchenOrders() {
         `)
         .order('created_at', { ascending: true });
 
-      if (!error && data) return data;
+      if (!error && data) {
+        return (data || [])
+          .map((o) => ({
+            ...o,
+            priority: getEffectivePriority(o.id, o.priority)
+          }))
+          .sort((a, b) => {
+            const aUrgent = a.priority === 'URGENT' ? 1 : 0;
+            const bUrgent = b.priority === 'URGENT' ? 1 : 0;
+            if (bUrgent !== aUrgent) return bUrgent - aUrgent;
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
+      }
       if (error) throw error;
     } catch (err) {
       console.warn('Supabase getKitchenOrders error, fallback to localStore:', err);
@@ -262,20 +343,28 @@ export async function getKitchenOrders() {
   }
 
   // Local fallback
-  return localStore.cafeOrders.map((order) => {
-    const items = localStore.cafeOrderItems
-      .filter((i) => i.order_id === order.id)
-      .map((i) => ({
-        ...i,
-        products: localStore.products.find((p) => p.id === i.product_id)
-      }));
-    const member = localStore.members.find((m) => m.id === order.member_id);
-    return {
-      ...order,
-      members: member ? { id: member.id, name: member.name, email: member.email } : null,
-      cafe_order_items: items
-    };
-  });
+  return localStore.cafeOrders
+    .map((order) => {
+      const items = localStore.cafeOrderItems
+        .filter((i) => i.order_id === order.id)
+        .map((i) => ({
+          ...i,
+          products: localStore.products.find((p) => p.id === i.product_id)
+        }));
+      const member = localStore.members.find((m) => m.id === order.member_id);
+      return {
+        ...order,
+        priority: order.priority || 'NORMAL',
+        members: member ? { id: member.id, name: member.name, email: member.email } : null,
+        cafe_order_items: items
+      };
+    })
+    .sort((a, b) => {
+      const aUrgent = a.priority === 'URGENT' ? 1 : 0;
+      const bUrgent = b.priority === 'URGENT' ? 1 : 0;
+      if (bUrgent !== aUrgent) return bUrgent - aUrgent;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
 }
 
 /**
@@ -345,7 +434,10 @@ export async function updateOrderStatus(orderId, newStatus) {
           localStore.cafeOrders[localIdx].status = targetStatus;
           localStore.saveCafeOrders();
         }
-        return data;
+        return {
+          ...data,
+          priority: data.priority || 'NORMAL'
+        };
       }
       if (error) throw error;
     } catch (err) {
@@ -359,5 +451,134 @@ export async function updateOrderStatus(orderId, newStatus) {
   localStore.cafeOrders[index].status = targetStatus;
   localStore.saveCafeOrders();
 
-  return localStore.cafeOrders[index];
+  return {
+    ...localStore.cafeOrders[index],
+    priority: localStore.cafeOrders[index].priority || 'NORMAL'
+  };
 }
+
+/**
+ * 4. Update Order Priority
+ * Allows kitchen staff to toggle between NORMAL and URGENT
+ */
+export async function updateOrderPriority(orderId, newPriority) {
+  const oId = Number(orderId);
+  const targetPriority = String(newPriority).toUpperCase() === 'URGENT' ? 'URGENT' : 'NORMAL';
+  setPriorityOverride(oId, targetPriority);
+
+  if (shouldUseSupabase()) {
+    try {
+      const { data, error } = await supabase
+        .from('cafe_orders')
+        .update({ priority: targetPriority })
+        .eq('id', oId)
+        .select(`
+          *,
+          members (id, name, email),
+          cafe_order_items (
+            id,
+            quantity,
+            unit_price,
+            total,
+            products (id, name, category)
+          )
+        `)
+        .single();
+
+      if (!error && data) {
+        const localIdx = localStore.cafeOrders.findIndex((o) => o.id === oId);
+        if (localIdx !== -1) {
+          localStore.cafeOrders[localIdx].priority = targetPriority;
+          localStore.saveCafeOrders();
+        }
+        return {
+          ...data,
+          priority: targetPriority
+        };
+      }
+      if (error && error.code !== '42703') throw error;
+    } catch (err) {
+      console.warn('Supabase updateOrderPriority error, updating localStore/memory:', err);
+    }
+  }
+
+  // Local fallback
+  const index = localStore.cafeOrders.findIndex((o) => o.id === oId);
+  if (index !== -1) {
+    localStore.cafeOrders[index].priority = targetPriority;
+    localStore.saveCafeOrders();
+    return localStore.cafeOrders[index];
+  }
+
+  return { id: oId, priority: targetPriority };
+}
+
+/**
+ * 5. Get Member Café Order History
+ * Strictly scoped to the authenticated member ID.
+ */
+export async function getMemberCafeOrders(memberId) {
+  const mId = Number(memberId);
+  if (!mId) return [];
+
+  if (shouldUseSupabase()) {
+    try {
+      const { data, error } = await supabase
+        .from('cafe_orders')
+        .select(`
+          *,
+          cafe_order_items (
+            id,
+            quantity,
+            unit_price,
+            total,
+            products (id, name, category)
+          )
+        `)
+        .eq('member_id', mId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        return (data || []).map((o) => ({
+          ...o,
+          priority: getEffectivePriority(o.id, o.priority)
+        }));
+      }
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Supabase getMemberCafeOrders error, fallback to localStore:', err);
+    }
+  }
+
+  // Local fallback
+  return localStore.cafeOrders
+    .filter((o) => Number(o.member_id) === mId)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map((order) => {
+      const items = localStore.cafeOrderItems
+        .filter((i) => i.order_id === order.id)
+        .map((i) => ({
+          ...i,
+          products: localStore.products.find((p) => p.id === i.product_id)
+        }));
+      return {
+        ...order,
+        priority: order.priority || 'NORMAL',
+        cafe_order_items: items
+      };
+    });
+}
+
+/**
+ * 6. Get Kitchen Low-Stock Alerts
+ * Only returns Café/Kitchen products at or below their low_stock_threshold.
+ * Explicitly excludes sports equipment.
+ */
+export async function getKitchenStockAlerts() {
+  const allProducts = await getProducts();
+  return (allProducts || []).filter((p) => {
+    if (!isCafeProduct(p.category)) return false;
+    return Number(p.stock_quantity) <= Number(p.low_stock_threshold);
+  });
+}
+
