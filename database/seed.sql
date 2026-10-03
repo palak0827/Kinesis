@@ -42,7 +42,9 @@ VALUES
     (3, 'Squash Court A', 'Squash', 28.00, 'available'),
     (4, 'Squash Court B', 'Squash', 28.00, 'maintenance'),
     (5, 'Badminton Court 1', 'Badminton', 24.00, 'available'),
-    (6, 'Padel Court 1 (Panoramic)', 'Padel', 44.00, 'available')
+    (6, 'Padel Court 1 (Panoramic)', 'Padel', 44.00, 'available'),
+    (7, 'Cricket Practice Net 1', 'Cricket', 30.00, 'available'),
+    (8, 'Cricket Main Ground', 'Cricket', 60.00, 'available')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('courts_id_seq', (SELECT MAX(id) FROM courts));
@@ -59,7 +61,10 @@ VALUES
     (7, 'Kinesis Pro Club Tech Polo', 'Apparel', 52.00, 16, 5, NOW() - INTERVAL '30 days'),
     (8, 'Kinesis Microfibre Quick-Dry Towel', 'Accessories', 22.00, 22, 6, NOW() - INTERVAL '30 days'),
     (9, 'HydroFuel Electrolyte Performance 500ml', 'Drinks & Nutrition', 4.50, 55, 12, NOW() - INTERVAL '30 days'),
-    (10, 'PureWhey High Protein Crisp Bar', 'Drinks & Nutrition', 3.50, 42, 10, NOW() - INTERVAL '30 days')
+    (10, 'PureWhey High Protein Crisp Bar', 'Drinks & Nutrition', 3.50, 42, 10, NOW() - INTERVAL '30 days'),
+    (11, 'Artisan Roast Cold Brew Coffee', 'Café', 4.50, 40, 10, NOW() - INTERVAL '30 days'),
+    (12, 'Club Sourdough Chicken Panini', 'Café', 8.50, 25, 8, NOW() - INTERVAL '30 days'),
+    (13, 'Acai Energy Recovery Bowl', 'Café', 7.00, 30, 8, NOW() - INTERVAL '30 days')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('products_id_seq', (SELECT MAX(id) FROM products));

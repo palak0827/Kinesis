@@ -295,7 +295,7 @@ export default function App() {
             <SidebarButton path="admin-courts" label="Courts" />
             <SidebarButton path="admin-inventory" label="Inventory" />
             <SidebarButton path="admin-operations" label="Operations" />
-            <SidebarButton path="admin-kitchen" label="Kitchen Queue" />
+            <SidebarButton path="admin-kitchen" label="Orders & Kitchen" />
           </div>
 
           <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>

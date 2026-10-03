@@ -38,7 +38,9 @@ export const initialCourts = [
   { id: 3, name: 'Squash Court A', sport: 'Squash', hourly_rate: 28.0, status: 'available' },
   { id: 4, name: 'Squash Court B', sport: 'Squash', hourly_rate: 28.0, status: 'maintenance' },
   { id: 5, name: 'Badminton Court 1', sport: 'Badminton', hourly_rate: 24.0, status: 'available' },
-  { id: 6, name: 'Padel Court 1 (Panoramic)', sport: 'Padel', hourly_rate: 44.0, status: 'available' }
+  { id: 6, name: 'Padel Court 1 (Panoramic)', sport: 'Padel', hourly_rate: 44.0, status: 'available' },
+  { id: 7, name: 'Cricket Practice Net 1', sport: 'Cricket', hourly_rate: 30.0, status: 'available' },
+  { id: 8, name: 'Cricket Main Ground', sport: 'Cricket', hourly_rate: 60.0, status: 'available' }
 ];
 
 export const initialMembers = [
@@ -221,6 +223,33 @@ export const initialProducts = [
     price: 3.5,
     stock_quantity: 42,
     low_stock_threshold: 10,
+    created_at: '2026-09-01T08:00:00Z'
+  },
+  {
+    id: 11,
+    name: 'Artisan Roast Cold Brew Coffee',
+    category: 'Café',
+    price: 4.5,
+    stock_quantity: 40,
+    low_stock_threshold: 10,
+    created_at: '2026-09-01T08:00:00Z'
+  },
+  {
+    id: 12,
+    name: 'Club Sourdough Chicken Panini',
+    category: 'Café',
+    price: 8.5,
+    stock_quantity: 25,
+    low_stock_threshold: 8,
+    created_at: '2026-09-01T08:00:00Z'
+  },
+  {
+    id: 13,
+    name: 'Acai Energy Recovery Bowl',
+    category: 'Café',
+    price: 7.0,
+    stock_quantity: 30,
+    low_stock_threshold: 8,
     created_at: '2026-09-01T08:00:00Z'
   }
 ];
