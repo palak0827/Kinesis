@@ -16,9 +16,10 @@ import AdminDashboard from './pages/admin/Dashboard.jsx';
 import AdminCourts from './pages/admin/Courts.jsx';
 import AdminInventory from './pages/admin/Inventory.jsx';
 import AdminOperations from './pages/admin/Operations.jsx';
+import AdminKitchen from './pages/admin/Kitchen.jsx';
 
 const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'profile'];
-const ADMIN_ROUTES = ['admin-dashboard', 'admin-courts', 'admin-inventory', 'admin-operations', 'admin-settings'];
+const ADMIN_ROUTES = ['admin-dashboard', 'admin-courts', 'admin-inventory', 'admin-operations', 'admin-kitchen', 'admin-settings'];
 
 function getRouteFromPath(pathname) {
   const p = (pathname || '').toLowerCase().replace(/\/$/, '');
@@ -37,6 +38,7 @@ function getRouteFromPath(pathname) {
   if (p === '/admin/courts' || p === '/admin-courts') return 'admin-courts';
   if (p === '/admin/inventory' || p === '/admin-inventory') return 'admin-inventory';
   if (p === '/admin/operations' || p === '/admin-operations') return 'admin-operations';
+  if (p === '/admin/kitchen' || p === '/admin-kitchen') return 'admin-kitchen';
   if (p === '/admin/settings' || p === '/admin-settings') return 'admin-settings';
   return 'landing';
 }
@@ -45,6 +47,7 @@ function getPathFromRoute(r) {
   if (r === 'landing') return '/';
   if (r === 'home') return '/member';
   if (r === 'admin-dashboard') return '/admin';
+  if (r === 'admin-kitchen') return '/admin/kitchen';
   return `/${r}`;
 }
 
@@ -251,6 +254,7 @@ export default function App() {
     if (route === 'admin-courts') content = <AdminCourts navigate={navigate} />;
     else if (route === 'admin-inventory') content = <AdminInventory navigate={navigate} />;
     else if (route === 'admin-operations') content = <AdminOperations navigate={navigate} />;
+    else if (route === 'admin-kitchen') content = <AdminKitchen navigate={navigate} />;
     else content = <AdminDashboard navigate={navigate} />;
 
     const SidebarButton = ({ path, label }) => (
@@ -291,6 +295,7 @@ export default function App() {
             <SidebarButton path="admin-courts" label="Courts" />
             <SidebarButton path="admin-inventory" label="Inventory" />
             <SidebarButton path="admin-operations" label="Operations" />
+            <SidebarButton path="admin-kitchen" label="Kitchen Queue" />
           </div>
 
           <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>

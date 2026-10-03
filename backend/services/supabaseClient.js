@@ -82,6 +82,8 @@ export const localStore = {
   bookings: readCollection('bookings', initialBookings),
   products: readCollection('products', initialProducts),
   sales: readCollection('sales', initialSales),
+  cafeOrders: readCollection('cafe_orders', []),
+  cafeOrderItems: readCollection('cafe_order_items', []),
   savePlans() {
     saveCollection('plans', this.plans);
   },
@@ -100,6 +102,12 @@ export const localStore = {
   saveSales() {
     saveCollection('sales', this.sales);
   },
+  saveCafeOrders() {
+    saveCollection('cafe_orders', this.cafeOrders);
+  },
+  saveCafeOrderItems() {
+    saveCollection('cafe_order_items', this.cafeOrderItems);
+  },
   resetToDefault() {
     this.plans = cloneRecords(initialMembershipPlans);
     this.courts = cloneRecords(initialCourts);
@@ -107,11 +115,15 @@ export const localStore = {
     this.bookings = cloneRecords(initialBookings);
     this.products = cloneRecords(initialProducts);
     this.sales = cloneRecords(initialSales);
+    this.cafeOrders = [];
+    this.cafeOrderItems = [];
     this.savePlans();
     this.saveCourts();
     this.saveMembers();
     this.saveBookings();
     this.saveProducts();
     this.saveSales();
+    this.saveCafeOrders();
+    this.saveCafeOrderItems();
   }
 };
