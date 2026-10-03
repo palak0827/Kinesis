@@ -163,7 +163,10 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
   if (mId) {
     memberDetails = await getMemberById(mId);
     if (memberDetails && memberDetails.status === 'active' && memberDetails.membership_plans) {
-      discountPercent = Number(memberDetails.membership_plans.shop_discount) || 0;
+      const isBarItem = product.category === 'Drinks & Nutrition' || product.category === 'Café' || product.category === 'Bar';
+      discountPercent = isBarItem
+        ? (Number(memberDetails.membership_plans.bar_discount) || 0)
+        : (Number(memberDetails.membership_plans.shop_discount) || 0);
     }
   }
 
