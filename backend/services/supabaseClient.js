@@ -8,12 +8,12 @@ import {
   initialSales
 } from './initialData.js';
 
-const supabaseUrl = typeof import.meta !== 'undefined' && import.meta.env
-  ? import.meta.env.VITE_SUPABASE_URL
-  : '';
-const supabaseAnonKey = typeof import.meta !== 'undefined' && import.meta.env
-  ? import.meta.env.VITE_SUPABASE_ANON_KEY
-  : '';
+const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) ||
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
+  'https://ulzlbtdurirbjiupmxzx.supabase.co';
+const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) ||
+  'sb_publishable_dn6v3c_L4AvOWXCujgmKjw_FtL9G3Pg';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

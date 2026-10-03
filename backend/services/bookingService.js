@@ -273,13 +273,13 @@ export async function calculateBookingPrice(courtId, memberId) {
  * - Member daily limit
  * - Centralized price calculation
  */
-export async function createBooking({
-  memberId,
-  courtId,
-  bookingDate,
-  startTime,
-  endTime: providedEndTime
-}) {
+export async function createBooking(params = {}) {
+  const memberId = params.memberId ?? params.member_id;
+  const courtId = params.courtId ?? params.court_id;
+  const bookingDate = params.bookingDate ?? params.booking_date;
+  const startTime = params.startTime ?? params.start_time;
+  const providedEndTime = params.endTime ?? params.end_time;
+
   const mId = Number(memberId);
   const cId = Number(courtId);
 
@@ -339,10 +339,11 @@ export async function createBooking({
           courts (id, name, sport, hourly_rate)
         `)
         .single();
-      if (!error && data) return data;
       if (error) throw error;
+      if (data) return data;
     } catch (err) {
-      console.warn('Supabase createBooking error, fallback to local:', err);
+      console.error('Supabase createBooking error:', err);
+      throw err;
     }
   }
 
