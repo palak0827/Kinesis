@@ -1,11 +1,11 @@
-import { supabase, isSupabaseConfigured, localStore } from './supabaseClient.js';
+import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 import { getMemberById } from './memberService.js';
 
 /**
  * Fetch all courts
  */
 export async function getCourts() {
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('courts')
@@ -25,7 +25,7 @@ export async function getCourts() {
 export async function getBookings(filters = {}) {
   let list = [];
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       let query = supabase
         .from('bookings')
@@ -322,7 +322,7 @@ export async function createBooking({
     created_at: new Date().toISOString()
   };
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -375,7 +375,7 @@ export async function createBooking({
 export async function cancelBooking(bookingId) {
   const bId = Number(bookingId);
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('bookings')

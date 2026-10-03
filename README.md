@@ -156,6 +156,10 @@ npm run dev
 
 Open `http://localhost:5173` in your browser. The app runs immediately with pre-loaded demo data!
 
+### Open the Local Admin Demo
+
+In the development server, choose **Login** and then **Open Local Demo Dashboard**. This opens the admin dashboard with seeded sample data and does not sign in to or read/write to Supabase. Demo changes persist in this browser; choose **Reset Demo Data** in the dashboard to restore the original sample data. This development-only option is not available in production builds.
+
 ---
 
 ## 🔌 Supabase Setup (Optional Live DB)
@@ -173,6 +177,17 @@ To connect Kinesis to your live Supabase cloud project:
    VITE_SUPABASE_ANON_KEY=your-anon-public-key
    ```
 7. Restart `npm run dev`. The top navbar badge will illuminate green: **`🟢 Supabase Live`**.
+
+### Member Accounts and Login
+
+There is no shared or preconfigured email/password. Each person creates an account using their own email address and a password they choose from **Become a Member**; they then use those same credentials on the **Login** page. The seeded sample members are sample records only and do not have passwords.
+
+- In Supabase **Authentication → Providers → Email**, enable email/password sign-in and allow new users to sign up.
+- For a new database, the signup trigger in `database/schema.sql` creates a linked member profile automatically. For a database that already exists, run `database/auth_setup.sql` once in the Supabase SQL Editor. Do not rerun `schema.sql` on an existing database: it drops and recreates the tables.
+- If email confirmation is enabled, users must follow the verification link before logging in. Configure Supabase's Site URL and redirect URLs for your local and deployed app, and configure SMTP for reliable delivery. If confirmation is disabled, a new user is signed in immediately after registration.
+- On login, use the exact email address and password entered during registration. Use **Forgot Password** to request a reset link.
+
+The local admin demo is separate from real accounts and does not create a login or change Supabase settings.
 
 ---
 

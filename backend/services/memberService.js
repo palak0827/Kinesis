@@ -1,10 +1,10 @@
-import { supabase, isSupabaseConfigured, localStore } from './supabaseClient.js';
+import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 
 /**
  * Fetch all membership plans
  */
 export async function getMembershipPlans() {
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     const { data, error } = await supabase
       .from('membership_plans')
       .select('*')
@@ -20,7 +20,7 @@ export async function getMembershipPlans() {
 export async function getMembers(search = '', filterStatus = 'all') {
   let membersList = [];
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       let query = supabase
         .from('members')
@@ -87,7 +87,7 @@ export async function getMembers(search = '', filterStatus = 'all') {
 export async function getMemberById(id) {
   const numId = Number(id);
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('members')
@@ -146,7 +146,7 @@ export async function createMember(memberData) {
     created_at: new Date().toISOString()
   };
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('members')
@@ -188,7 +188,7 @@ export async function createMember(memberData) {
 export async function updateMember(id, memberData) {
   const numId = Number(id);
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('members')
@@ -236,7 +236,7 @@ export async function updateMember(id, memberData) {
 export async function deleteMember(id) {
   const numId = Number(id);
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { error } = await supabase
         .from('members')

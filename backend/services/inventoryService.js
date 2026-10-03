@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, localStore } from './supabaseClient.js';
+import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 import { getMemberById } from './memberService.js';
 
 /**
@@ -7,7 +7,7 @@ import { getMemberById } from './memberService.js';
 export async function getProducts(category = 'all', search = '') {
   let list = [];
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       let query = supabase
         .from('products')
@@ -64,7 +64,7 @@ export async function createProduct(productData) {
     created_at: new Date().toISOString()
   };
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -101,7 +101,7 @@ export async function updateProduct(id, productData) {
     updates.low_stock_threshold = Math.max(1, parseInt(updates.low_stock_threshold, 10));
   }
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -184,7 +184,7 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
     created_at: new Date().toISOString()
   };
 
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       // Update stock
       await supabase
@@ -235,7 +235,7 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
  * Fetch sales history with product and member info
  */
 export async function getSalesHistory(limit = 50) {
-  if (isSupabaseConfigured) {
+  if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
         .from('sales')

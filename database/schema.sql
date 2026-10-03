@@ -36,12 +36,68 @@ CREATE TABLE members (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     phone VARCHAR(30),
+    auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
     plan_id INT REFERENCES membership_plans(id) ON DELETE SET NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
     start_date DATE NOT NULL DEFAULT CURRENT_DATE,
     expiry_date DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create a club member profile automatically for each email/password account.
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    default_plan_id INT;
+BEGIN
+    IF NEW.email IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT id INTO default_plan_id
+    FROM public.membership_plans
+    WHERE name = 'Gold'
+    ORDER BY id
+    LIMIT 1;
+
+    INSERT INTO public.members (
+        name,
+        email,
+        phone,
+        auth_user_id,
+        plan_id,
+        start_date,
+        expiry_date,
+        status
+    )
+    VALUES (
+        COALESCE(NULLIF(TRIM(NEW.raw_user_meta_data ->> 'full_name'), ''), SPLIT_PART(NEW.email, '@', 1)),
+        LOWER(NEW.email),
+        NULLIF(TRIM(NEW.raw_user_meta_data ->> 'phone'), ''),
+        NEW.id,
+        default_plan_id,
+        CURRENT_DATE,
+        CURRENT_DATE + INTERVAL '1 year',
+        'active'
+    )
+    ON CONFLICT (email) DO UPDATE
+    SET auth_user_id = EXCLUDED.auth_user_id
+    WHERE public.members.auth_user_id IS NULL;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_auth_user();
 
 -- -----------------------------------------------------------------------------
 -- 3. COURTS

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Database, RotateCcw, Sparkles, CheckCircle2, Clock, ShieldCheck } from 'lucide-react';
-import { isSupabaseConfigured, localStore } from '../supabase.js';
+import { isDemoMode, isSupabaseConfigured, localStore } from '../supabase.js';
 
 export default function Navbar({ onDataReset }) {
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -51,7 +51,7 @@ export default function Navbar({ onDataReset }) {
       {/* Right: Supabase Connection Status & Demo Reset */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Backend Status Badge */}
-        {isSupabaseConfigured ? (
+        {isSupabaseConfigured && !isDemoMode() ? (
           <div
             style={{
               display: 'inline-flex',
