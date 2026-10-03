@@ -170,7 +170,8 @@ export async function createCafeOrder({ memberId = null, items = [] }) {
         members: member ? { id: member.id, name: member.name, email: member.email } : null
       };
     } catch (err) {
-      console.warn('Supabase createCafeOrder error, falling back to localStore:', err);
+      console.error('Supabase createCafeOrder error:', err);
+      throw err;
     }
   }
 
