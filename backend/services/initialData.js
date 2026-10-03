@@ -3,7 +3,7 @@ export const initialMembershipPlans = [
   {
     id: 1,
     name: 'Gold',
-    monthly_price: 120.0,
+    monthly_price: 499.0,
     court_discount: 50.0, // 50% off court bookings
     shop_discount: 20.0,  // 20% off pro shop
     bar_discount: 15.0,   // 15% off bar & drinks
@@ -13,7 +13,7 @@ export const initialMembershipPlans = [
   {
     id: 2,
     name: 'Silver',
-    monthly_price: 75.0,
+    monthly_price: 299.0,
     court_discount: 25.0,
     shop_discount: 10.0,
     bar_discount: 10.0,
@@ -23,7 +23,7 @@ export const initialMembershipPlans = [
   {
     id: 3,
     name: 'Junior',
-    monthly_price: 45.0,
+    monthly_price: 199.0,
     court_discount: 35.0,
     shop_discount: 15.0,
     bar_discount: 10.0,
@@ -33,19 +33,21 @@ export const initialMembershipPlans = [
 ];
 
 export const initialCourts = [
-  { id: 1, name: 'Tennis Court 1 (Clay)', sport: 'Tennis', hourly_rate: 40.0, status: 'available' },
-  { id: 2, name: 'Tennis Court 2 (Hard)', sport: 'Tennis', hourly_rate: 36.0, status: 'available' },
-  { id: 3, name: 'Squash Court A', sport: 'Squash', hourly_rate: 28.0, status: 'available' },
-  { id: 4, name: 'Squash Court B', sport: 'Squash', hourly_rate: 28.0, status: 'maintenance' },
-  { id: 5, name: 'Badminton Court 1', sport: 'Badminton', hourly_rate: 24.0, status: 'available' },
-  { id: 6, name: 'Padel Court 1 (Panoramic)', sport: 'Padel', hourly_rate: 44.0, status: 'available' },
-  { id: 7, name: 'Cricket Practice Net 1', sport: 'Cricket', hourly_rate: 30.0, status: 'available' },
-  { id: 8, name: 'Cricket Main Ground', sport: 'Cricket', hourly_rate: 60.0, status: 'available' }
+  { id: 1, name: 'Tennis Court 1 (Clay)', sport: 'Tennis', hourly_rate: 200.0, status: 'available' },
+  { id: 2, name: 'Tennis Court 2 (Hard)', sport: 'Tennis', hourly_rate: 200.0, status: 'available' },
+  { id: 3, name: 'Squash Court A', sport: 'Squash', hourly_rate: 150.0, status: 'available' },
+  { id: 4, name: 'Squash Court B', sport: 'Squash', hourly_rate: 150.0, status: 'maintenance' },
+  { id: 5, name: 'Badminton Court 1', sport: 'Badminton', hourly_rate: 100.0, status: 'available' },
+  { id: 6, name: 'Padel Court 1 (Panoramic)', sport: 'Padel', hourly_rate: 250.0, status: 'available' },
+  { id: 7, name: 'Cricket Practice Net 1', sport: 'Cricket', hourly_rate: 200.0, status: 'available' },
+  { id: 8, name: 'Cricket Main Ground', sport: 'Cricket', hourly_rate: 400.0, status: 'available' },
+  { id: 9, name: 'Table Tennis Arena 1', sport: 'Table Tennis', hourly_rate: 100.0, status: 'available' }
 ];
 
 export const initialMembers = [
   {
     id: 1,
+    club_id: '1000000001',
     name: 'Alex Mercer',
     email: 'alex.mercer@kinesis.club',
     phone: '+1 (555) 234-8901',
@@ -57,6 +59,7 @@ export const initialMembers = [
   },
   {
     id: 2,
+    club_id: '1000000002',
     name: 'Elena Rostova',
     email: 'elena.rostova@kinesis.club',
     phone: '+1 (555) 345-6712',
@@ -135,123 +138,59 @@ export const initialMembers = [
 ];
 
 export const initialProducts = [
-  {
-    id: 1,
-    name: 'Wilson Pro Staff 97 v14',
-    category: 'Rackets',
-    price: 220.0,
-    stock_quantity: 8,
-    low_stock_threshold: 3,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 2,
-    name: 'Head Speed MP 2024',
-    category: 'Rackets',
-    price: 195.0,
-    stock_quantity: 2, // Low stock alert!
-    low_stock_threshold: 3,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 3,
-    name: 'Babolat Team All Court (4-Can)',
-    category: 'Balls',
-    price: 9.5,
-    stock_quantity: 48,
-    low_stock_threshold: 15,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 4,
-    name: 'Dunlop Pro Squash Balls (3-Pack)',
-    category: 'Balls',
-    price: 14.0,
-    stock_quantity: 24,
-    low_stock_threshold: 8,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 5,
-    name: 'Yonex Mavis 350 Shuttlecocks (6-Tube)',
-    category: 'Accessories',
-    price: 18.0,
-    stock_quantity: 3, // Low stock alert!
-    low_stock_threshold: 5,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 6,
-    name: 'Bullpadel Hack 03 Padel Racket',
-    category: 'Rackets',
-    price: 260.0,
-    stock_quantity: 5,
-    low_stock_threshold: 2,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 7,
-    name: 'Kinesis Pro Club Tech Polo',
-    category: 'Apparel',
-    price: 52.0,
-    stock_quantity: 16,
-    low_stock_threshold: 5,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 8,
-    name: 'Kinesis Microfibre Quick-Dry Towel',
-    category: 'Accessories',
-    price: 22.0,
-    stock_quantity: 22,
-    low_stock_threshold: 6,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 9,
-    name: 'HydroFuel Electrolyte Performance 500ml',
-    category: 'Drinks & Nutrition',
-    price: 4.5,
-    stock_quantity: 55,
-    low_stock_threshold: 12,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 10,
-    name: 'PureWhey High Protein Crisp Bar',
-    category: 'Drinks & Nutrition',
-    price: 3.5,
-    stock_quantity: 42,
-    low_stock_threshold: 10,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 11,
-    name: 'Artisan Roast Cold Brew Coffee',
-    category: 'Café',
-    price: 4.5,
-    stock_quantity: 40,
-    low_stock_threshold: 10,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 12,
-    name: 'Club Sourdough Chicken Panini',
-    category: 'Café',
-    price: 8.5,
-    stock_quantity: 25,
-    low_stock_threshold: 8,
-    created_at: '2026-09-01T08:00:00Z'
-  },
-  {
-    id: 13,
-    name: 'Acai Energy Recovery Bowl',
-    category: 'Café',
-    price: 7.0,
-    stock_quantity: 30,
-    low_stock_threshold: 8,
-    created_at: '2026-09-01T08:00:00Z'
-  }
+  // Gear Shop
+  { id: 1, name: 'Wilson Pro Staff 97 v14', category: 'Rackets', price: 499.0, stock_quantity: 7, low_stock_threshold: 3, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 2, name: 'Head Speed MP 2024', category: 'Rackets', price: 449.0, stock_quantity: 0, low_stock_threshold: 3, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 3, name: 'Babolat Team All Court (4-Can)', category: 'Balls', price: 249.0, stock_quantity: 44, low_stock_threshold: 15, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 4, name: 'Dunlop Pro Squash Balls (3-Pack)', category: 'Balls', price: 199.0, stock_quantity: 24, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 5, name: 'Yonex Mavis 350 Shuttlecocks (6-Tube)', category: 'Accessories', price: 249.0, stock_quantity: 0, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 6, name: 'Bullpadel Hack 03 Padel Racket', category: 'Rackets', price: 499.0, stock_quantity: 5, low_stock_threshold: 2, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 7, name: 'Kinesis Pro Club Tech Polo', category: 'Apparel', price: 449.0, stock_quantity: 11, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 8, name: 'Kinesis Microfibre Quick-Dry Towel', category: 'Accessories', price: 199.0, stock_quantity: 12, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  
+  // Café & Bar - Drinks & Snacks
+  { id: 9, name: 'HydroFuel Electrolyte Performance 500ml', category: 'Drinks', price: 99.0, stock_quantity: 51, low_stock_threshold: 12, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 10, name: 'PureWhey High Protein Crisp Bar', category: 'Snacks', price: 119.0, stock_quantity: 40, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 11, name: 'Artisan Roast Cold Brew Coffee', category: 'Drinks', price: 149.0, stock_quantity: 36, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 12, name: 'Club Sourdough Chicken Panini', category: 'Food', price: 249.0, stock_quantity: 25, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 13, name: 'Acai Energy Recovery Bowl', category: 'Food', price: 279.0, stock_quantity: 29, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-09-01T08:00:00Z' },
+  { id: 14, name: 'Iced Tea', category: 'Drinks', price: 109.0, stock_quantity: 40, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:43.672234+00:00' },
+  { id: 15, name: 'Cold Coffee', category: 'Drinks', price: 129.0, stock_quantity: 35, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:44.277151+00:00' },
+  { id: 16, name: 'Cold Brew', category: 'Drinks', price: 149.0, stock_quantity: 30, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:44.80786+00:00' },
+  { id: 17, name: 'Protein Shake', category: 'Drinks', price: 199.0, stock_quantity: 30, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:45.293131+00:00' },
+  { id: 18, name: 'Fresh Fruit Juice', category: 'Drinks', price: 129.0, stock_quantity: 35, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:45.80304+00:00' },
+  { id: 19, name: 'Electrolyte Drink', category: 'Drinks', price: 99.0, stock_quantity: 50, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:46.42144+00:00' },
+  
+  // Café & Bar - Mocktails
+  { id: 20, name: 'Virgin Mojito', category: 'Mocktails', price: 149.0, stock_quantity: 35, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:46.932684+00:00' },
+  { id: 21, name: 'Blue Lagoon', category: 'Mocktails', price: 159.0, stock_quantity: 30, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:47.663037+00:00' },
+  { id: 22, name: 'Berry Fizz', category: 'Mocktails', price: 169.0, stock_quantity: 25, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:48.392215+00:00' },
+  { id: 23, name: 'Tropical Punch', category: 'Mocktails', price: 179.0, stock_quantity: 25, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:49.041274+00:00' },
+  { id: 24, name: 'Watermelon Cooler', category: 'Mocktails', price: 149.0, stock_quantity: 30, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:49.876491+00:00' },
+  
+  // Café & Bar - Food & Snacks
+  { id: 25, name: 'French Fries', category: 'Snacks', price: 129.0, stock_quantity: 40, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:50.522168+00:00' },
+  { id: 26, name: 'Veg Sandwich', category: 'Snacks', price: 149.0, stock_quantity: 30, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:51.076443+00:00' },
+  { id: 27, name: 'Grilled Sandwich', category: 'Snacks', price: 179.0, stock_quantity: 25, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:51.867691+00:00' },
+  { id: 28, name: 'Protein Bar', category: 'Snacks', price: 119.0, stock_quantity: 60, low_stock_threshold: 12, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:52.444702+00:00' },
+  { id: 29, name: 'Nachos', category: 'Snacks', price: 169.0, stock_quantity: 35, low_stock_threshold: 8, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:52.891884+00:00' },
+  { id: 30, name: 'Veg Panini', category: 'Food', price: 199.0, stock_quantity: 25, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:53.568791+00:00' },
+  { id: 31, name: 'Chicken Panini', category: 'Food', price: 249.0, stock_quantity: 20, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:54.317821+00:00' },
+  { id: 32, name: 'Paneer Wrap', category: 'Food', price: 219.0, stock_quantity: 20, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:55.007467+00:00' },
+  { id: 33, name: 'Chicken Wrap', category: 'Food', price: 249.0, stock_quantity: 18, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:55.700257+00:00' },
+  { id: 34, name: 'Pasta', category: 'Food', price: 229.0, stock_quantity: 20, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:56.505164+00:00' },
+  { id: 35, name: 'Healthy Bowl', category: 'Food', price: 249.0, stock_quantity: 22, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:57.027221+00:00' },
+  { id: 36, name: 'Recovery Bowl', category: 'Food', price: 279.0, stock_quantity: 22, low_stock_threshold: 5, availability_status: 'AVAILABLE', created_at: '2026-10-03T19:39:57.521524+00:00' },
+
+  // New Additions
+  { id: 37, name: 'Mineral Water', category: 'Drinks', price: 40.0, stock_quantity: 60, low_stock_threshold: 15, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 38, name: 'Fresh Lime Soda', category: 'Drinks', price: 89.0, stock_quantity: 40, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 39, name: 'Lemon Mint Cooler', category: 'Drinks', price: 99.0, stock_quantity: 35, low_stock_threshold: 10, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 40, name: 'Gray-Nicolls Powerbow Cricket Bat', category: 'Rackets', price: 499.0, stock_quantity: 6, low_stock_threshold: 2, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 41, name: 'SG Test Cricket Leather Ball', category: 'Balls', price: 349.0, stock_quantity: 20, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 42, name: 'Yonex Astrox 88D Pro Badminton Racket', category: 'Rackets', price: 449.0, stock_quantity: 8, low_stock_threshold: 2, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 43, name: 'Kinesis Pro Performance T-Shirt', category: 'Apparel', price: 299.0, stock_quantity: 20, low_stock_threshold: 6, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' },
+  { id: 44, name: 'Kinesis Tour Club Sports Bag', category: 'Accessories', price: 399.0, stock_quantity: 12, low_stock_threshold: 4, availability_status: 'AVAILABLE', created_at: '2026-10-04T01:40:00Z' }
 ];
 
 // Helper to format ISO date string for today

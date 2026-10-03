@@ -142,11 +142,13 @@ CREATE TABLE products (
     price NUMERIC(10, 2) NOT NULL,
     stock_quantity INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
     low_stock_threshold INT NOT NULL DEFAULT 5,
+    availability_status VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE' CHECK (availability_status IN ('AVAILABLE', 'OUT_OF_STOCK', 'TEMPORARILY_UNAVAILABLE')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for category filters
+-- Index for category and availability filters
 CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_availability ON products(availability_status);
 
 -- -----------------------------------------------------------------------------
 -- 6. SALES
@@ -190,3 +192,26 @@ CREATE TRIGGER trg_sale_stock_reduction
 AFTER INSERT ON sales
 FOR EACH ROW
 EXECUTE FUNCTION update_product_stock_on_sale();
+
+-- -----------------------------------------------------------------------------
+-- 7. CAFÉ & BAR PHYSICAL TABLES
+-- Physical floor seating, capacity, and operational status
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cafe_tables (
+    id SERIAL PRIMARY KEY,
+    table_number VARCHAR(20) NOT NULL UNIQUE,
+    table_name VARCHAR(100),
+    capacity INTEGER NOT NULL DEFAULT 2 CHECK (capacity > 0),
+    status VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE'
+        CHECK (status IN ('AVAILABLE', 'RESERVED', 'OCCUPIED', 'UNDER_MAINTENANCE')),
+    reserved_by VARCHAR(100),
+    reservation_date DATE,
+    reservation_time VARCHAR(50),
+    party_size INTEGER,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cafe_tables_status ON cafe_tables(status);
+

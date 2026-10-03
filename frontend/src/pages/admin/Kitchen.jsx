@@ -6,6 +6,8 @@ import {
   updateOrderPriority,
   getKitchenStockAlerts
 } from '@backend/services/cafeService.js';
+import { getCafeRevenueStats } from '@backend/services/revenueService.js';
+import CurrentDate from '../../components/CurrentDate.jsx';
 
 export default function Kitchen() {
   const [activeTab, setActiveTab] = useState('kitchen'); // 'kitchen' or 'sports'
@@ -17,6 +19,12 @@ export default function Kitchen() {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [updatingPriorityId, setUpdatingPriorityId] = useState(null);
+  const [cafeStats, setCafeStats] = useState({
+    totalCafeRevenue: 0,
+    todayCafeRevenue: 0,
+    ordersToday: 0,
+    activeKitchenOrders: 0
+  });
 
   // Search and Filter States (Feature 5)
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +78,14 @@ export default function Kitchen() {
         .select('*', { count: 'exact', head: true })
         .lte('stock_quantity', 5);
       setLowStockCount(lowCount || 0);
+
+      // 5. Fetch centralized Café & Bar revenue stats
+      try {
+        const cStats = await getCafeRevenueStats();
+        setCafeStats(cStats);
+      } catch (e) {
+        console.error('Error fetching cafe revenue stats:', e);
+      }
 
     } catch (err) {
       console.error('Error fetching admin orders data:', err);
@@ -432,7 +448,7 @@ export default function Kitchen() {
   return (
     <div style={{ maxWidth: '1400px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ marginBottom: '0.35rem' }}>Orders & Kitchen Management</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>
@@ -440,22 +456,25 @@ export default function Kitchen() {
           </p>
         </div>
 
-        <button
-          onClick={fetchData}
-          className="btn"
-          style={{
-            border: '1px solid var(--border-subtle)',
-            padding: '0.55rem 1.1rem',
-            fontSize: '0.85rem',
-            background: 'var(--bg-surface)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontWeight: 600
-          }}
-        >
-          ↻ Refresh Orders
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <CurrentDate />
+          <button
+            onClick={fetchData}
+            className="btn"
+            style={{
+              border: '1px solid var(--border-subtle)',
+              padding: '0.55rem 1.1rem',
+              fontSize: '0.85rem',
+              background: 'var(--bg-surface)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontWeight: 600
+            }}
+          >
+            ↻ Refresh Orders
+          </button>
+        </div>
       </div>
 
       {/* Global Error Alert */}
@@ -464,6 +483,62 @@ export default function Kitchen() {
           ✕ {error}
         </div>
       )}
+
+      {/* CAFÉ & BAR SUMMARY BANNER */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <div style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>☕</span> CAFÉ & BAR SUMMARY
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '1rem' }}>
+          <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #f59e0b' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+              Total Café Revenue
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+              ₹{cafeStats.totalCafeRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              All-time food & drinks revenue
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #10b981' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+              Today's Café Revenue
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+              ₹{cafeStats.todayCafeRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              Completed café orders today
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #3b82f6' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+              Orders Today
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              {cafeStats.ordersToday}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              Total orders placed today
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #ef4444' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+              Active Kitchen Orders
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: cafeStats.activeKitchenOrders > 0 ? '#ef4444' : '#10b981' }}>
+              {cafeStats.activeKitchenOrders}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              In queue / preparing now
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* FEATURE 6: COMPACT "TODAY'S KITCHEN" SUMMARY SECTION */}
       <div

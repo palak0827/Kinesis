@@ -5,6 +5,9 @@ import Login from './pages/public/Login.jsx';
 import Register from './pages/public/Register.jsx';
 import ForgotPassword from './pages/public/ForgotPassword.jsx';
 import ResetPassword from './pages/public/ResetPassword.jsx';
+import NotificationBell from './components/NotificationBell.jsx';
+
+// Member Portal Pages
 import MemberHome from './pages/member/Home.jsx';
 import BookCourt from './pages/member/BookCourt.jsx';
 import MemberBookings from './pages/member/Bookings.jsx';
@@ -12,15 +15,43 @@ import MemberMembership from './pages/member/Membership.jsx';
 import MemberShop from './pages/member/Shop.jsx';
 import MemberCafeOrders from './pages/member/CafeOrders.jsx';
 import MemberProfile from './pages/member/Profile.jsx';
+import PurchaseHistory from './pages/member/PurchaseHistory.jsx';
 
+// Dedicated Operational Portals
+import RestaurantPortal from './pages/restaurant/RestaurantPortal.jsx';
+import BarPortal from './pages/bar/BarPortal.jsx';
+import ShopManagerPortal from './pages/shopManager/ShopManagerPortal.jsx';
+import CourtManagerPortal from './pages/courtManager/CourtManagerPortal.jsx';
+import StaffManagerPortal from './pages/staffManager/StaffManagerPortal.jsx';
+import ReceptionPortal from './pages/reception/ReceptionPortal.jsx';
+
+// Admin Portal Pages
 import AdminDashboard from './pages/admin/Dashboard.jsx';
 import AdminCourts from './pages/admin/Courts.jsx';
 import AdminInventory from './pages/admin/Inventory.jsx';
 import AdminOperations from './pages/admin/Operations.jsx';
 import AdminKitchen from './pages/admin/Kitchen.jsx';
+import AdminMembers from './pages/Members.jsx';
+import AdminAnalytics from './pages/admin/Analytics.jsx';
+import AdminTables from './pages/admin/Tables.jsx';
+import AdminOffersAndPlans from './pages/admin/AdminOffersAndPlans.jsx';
 
-const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'cafe-orders', 'profile'];
-const ADMIN_ROUTES = ['admin-dashboard', 'admin-courts', 'admin-inventory', 'admin-operations', 'admin-kitchen', 'admin-settings'];
+// Legacy Staff Pages
+import StaffDashboard from './pages/staff/StaffDashboard.jsx';
+import StaffInventory from './pages/staff/StaffInventory.jsx';
+import StaffTables from './pages/staff/StaffTables.jsx';
+
+const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'cafe-orders', 'purchase-history', 'profile'];
+const RESTAURANT_ROUTES = ['restaurant-dashboard'];
+const BAR_ROUTES = ['bar-dashboard'];
+const SHOP_ROUTES = ['shop-dashboard'];
+const COURT_ROUTES = ['court-dashboard'];
+const STAFF_ROUTES = ['staff-dashboard', 'staff-inventory', 'staff-tables'];
+const RECEPTION_ROUTES = ['reception-dashboard'];
+const ADMIN_ROUTES = [
+  'admin-dashboard', 'admin-analytics', 'admin-operations', 'admin-members',
+  'admin-courts', 'admin-inventory', 'admin-tables', 'admin-kitchen', 'admin-offers'
+];
 
 function getRouteFromPath(pathname) {
   const p = (pathname || '').toLowerCase().replace(/\/$/, '');
@@ -29,27 +60,61 @@ function getRouteFromPath(pathname) {
   if (p === '/register') return 'register';
   if (p === '/forgot-password') return 'forgot-password';
   if (p === '/reset-password') return 'reset-password';
+
+  // Member Routes
   if (p === '/member' || p === '/home') return 'home';
   if (p === '/book') return 'book';
   if (p === '/bookings') return 'bookings';
   if (p === '/membership') return 'membership';
   if (p === '/shop') return 'shop';
   if (p === '/cafe-orders' || p === '/member/cafe-orders') return 'cafe-orders';
+  if (p === '/purchase-history' || p === '/purchases') return 'purchase-history';
   if (p === '/profile') return 'profile';
+
+  // Dedicated Portals
+  if (p === '/restaurant' || p === '/restaurant-dashboard') return 'restaurant-dashboard';
+  if (p === '/bar' || p === '/bar-dashboard') return 'bar-dashboard';
+  if (p === '/shop-manager' || p === '/shop-dashboard') return 'shop-dashboard';
+  if (p === '/court-manager' || p === '/court-dashboard') return 'court-dashboard';
+  if (p === '/reception' || p === '/reception-dashboard') return 'reception-dashboard';
+  
+  // Staff Routes
+  if (p === '/staff' || p === '/staff-dashboard' || p === '/staff/dashboard') return 'staff-dashboard';
+  if (p === '/staff/inventory' || p === '/staff-inventory') return 'staff-inventory';
+  if (p === '/staff/tables' || p === '/staff-tables') return 'staff-tables';
+
+  // Admin Routes
   if (p === '/admin' || p === '/admin-dashboard') return 'admin-dashboard';
+  if (p === '/admin/analytics' || p === '/admin-analytics') return 'admin-analytics';
   if (p === '/admin/courts' || p === '/admin-courts') return 'admin-courts';
   if (p === '/admin/inventory' || p === '/admin-inventory') return 'admin-inventory';
   if (p === '/admin/operations' || p === '/admin-operations') return 'admin-operations';
+  if (p === '/admin/tables' || p === '/admin-tables') return 'admin-tables';
   if (p === '/admin/kitchen' || p === '/admin-kitchen') return 'admin-kitchen';
-  if (p === '/admin/settings' || p === '/admin-settings') return 'admin-settings';
+  if (p === '/admin/members' || p === '/admin-members') return 'admin-members';
+  if (p === '/admin/offers' || p === '/admin-offers') return 'admin-offers';
+
   return 'landing';
 }
 
 function getPathFromRoute(r) {
   if (r === 'landing') return '/';
   if (r === 'home') return '/member';
+  if (r === 'restaurant-dashboard') return '/restaurant';
+  if (r === 'bar-dashboard') return '/bar';
+  if (r === 'shop-dashboard') return '/shop-manager';
+  if (r === 'court-dashboard') return '/court-manager';
+  if (r === 'reception-dashboard') return '/reception';
+  if (r === 'staff-dashboard') return '/staff';
+  if (r === 'staff-inventory') return '/staff/inventory';
+  if (r === 'staff-tables') return '/staff/tables';
   if (r === 'admin-dashboard') return '/admin';
+  if (r === 'admin-analytics') return '/admin/analytics';
+  if (r === 'admin-operations') return '/admin/operations';
+  if (r === 'admin-tables') return '/admin/tables';
   if (r === 'admin-kitchen') return '/admin/kitchen';
+  if (r === 'admin-members') return '/admin/members';
+  if (r === 'admin-offers') return '/admin/offers';
   return `/${r}`;
 }
 
@@ -85,6 +150,74 @@ function ThemeToggle() {
   );
 }
 
+function PortalHeader({ title, user, role, onProfileClick }) {
+  return (
+    <header style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0.85rem 2.5rem',
+      background: 'var(--bg-surface)',
+      borderBottom: '1px solid var(--border-subtle)',
+      position: 'sticky',
+      top: 0,
+      zIndex: 40,
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--primary)', textTransform: 'uppercase' }}>
+          KINESIS SPORTS CLUB
+        </span>
+        <span style={{ color: 'var(--border-subtle)', fontSize: '0.9rem' }}>/</span>
+        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+          {title}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <NotificationBell />
+        <ThemeToggle />
+        <div
+          onClick={onProfileClick}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: onProfileClick ? 'pointer' : 'default',
+            padding: '0.35rem 0.65rem',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-main)',
+            border: '1px solid var(--border-subtle)'
+          }}
+        >
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: 'var(--primary)',
+            color: '#d4af37',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 800,
+            fontSize: '0.78rem'
+          }}>
+            {(user?.name || user?.email || 'U')[0].toUpperCase()}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.2 }}>
+              {user?.name || user?.email?.split('@')[0]}
+            </span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+              {role?.replace('_', ' ').toLowerCase()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export default function App() {
   const { user, role, loading, logout } = useAuth();
   const [route, setRoute] = useState(() => getRouteFromPath(window.location.pathname));
@@ -99,7 +232,6 @@ export default function App() {
     }
   };
 
-  // Sync browser back/forward buttons
   useEffect(() => {
     const handlePopState = () => {
       setRoute(getRouteFromPath(window.location.pathname));
@@ -108,35 +240,90 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Strict session-based route protection
+  // Centralized, strict role guards preventing cross-role access
   useEffect(() => {
     if (loading) return;
 
     const path = window.location.pathname.toLowerCase();
+    const currentRole = (role || '').toUpperCase();
 
+    // 1. Unauthenticated users cannot access private portals
     if (!user) {
-      // No session -> protect /member/* and /admin/*
-      if (
+      const isPrivate = (
         MEMBER_ROUTES.includes(route) ||
+        RESTAURANT_ROUTES.includes(route) ||
+        BAR_ROUTES.includes(route) ||
+        SHOP_ROUTES.includes(route) ||
+        COURT_ROUTES.includes(route) ||
+        STAFF_ROUTES.includes(route) ||
+        RECEPTION_ROUTES.includes(route) ||
         ADMIN_ROUTES.includes(route) ||
         path.startsWith('/member') ||
+        path.startsWith('/restaurant') ||
+        path.startsWith('/bar') ||
+        path.startsWith('/shop-manager') ||
+        path.startsWith('/court-manager') ||
+        path.startsWith('/reception') ||
+        path.startsWith('/staff') ||
         path.startsWith('/admin')
-      ) {
+      );
+      if (isPrivate) {
         navigate('login', true);
       }
-    } else if (role?.toUpperCase() === 'MEMBER') {
-      // Member session -> protect /admin/*
-      if (ADMIN_ROUTES.includes(route) || path.startsWith('/admin')) {
-        navigate('home', true);
-      } else if (route === 'login' || route === 'register') {
+      return;
+    }
+
+    // 2. Role-specific route boundaries (Admin has superuser privilege across all dashboards)
+    if (currentRole === 'ADMIN') {
+      if (route === 'login' || route === 'register') {
+        navigate('admin-dashboard', true);
+      }
+      return;
+    }
+
+    if (currentRole === 'MEMBER') {
+      const isIllegal = (
+        RESTAURANT_ROUTES.includes(route) ||
+        BAR_ROUTES.includes(route) ||
+        SHOP_ROUTES.includes(route) ||
+        COURT_ROUTES.includes(route) ||
+        STAFF_ROUTES.includes(route) ||
+        RECEPTION_ROUTES.includes(route) ||
+        ADMIN_ROUTES.includes(route) ||
+        path.startsWith('/restaurant') ||
+        path.startsWith('/bar') ||
+        path.startsWith('/shop-manager') ||
+        path.startsWith('/court-manager') ||
+        path.startsWith('/reception') ||
+        path.startsWith('/staff') ||
+        path.startsWith('/admin')
+      );
+      if (isIllegal || route === 'login' || route === 'register') {
         navigate('home', true);
       }
-    } else if (role?.toUpperCase() === 'ADMIN') {
-      // Admin session -> protect /member/*
-      if (MEMBER_ROUTES.includes(route) || path.startsWith('/member')) {
-        navigate('admin-dashboard', true);
-      } else if (route === 'login' || route === 'register') {
-        navigate('admin-dashboard', true);
+    } else if (currentRole === 'RESTAURANT_MANAGER') {
+      if (!RESTAURANT_ROUTES.includes(route)) {
+        navigate('restaurant-dashboard', true);
+      }
+    } else if (currentRole === 'BAR_MANAGER') {
+      if (!BAR_ROUTES.includes(route)) {
+        navigate('bar-dashboard', true);
+      }
+    } else if (currentRole === 'SHOP_MANAGER') {
+      if (!SHOP_ROUTES.includes(route)) {
+        navigate('shop-dashboard', true);
+      }
+    } else if (currentRole === 'COURT_MANAGER') {
+      if (!COURT_ROUTES.includes(route)) {
+        navigate('court-dashboard', true);
+      }
+    } else if (currentRole === 'STAFF_MANAGER' || currentRole === 'STAFF') {
+      if (!STAFF_ROUTES.includes(route)) {
+        navigate('staff-dashboard', true);
+      }
+    } else if (currentRole === 'RECEPTION') {
+      if (!RECEPTION_ROUTES.includes(route)) {
+        navigate('reception-dashboard', true);
       }
     }
   }, [user, role, loading, route]);
@@ -162,68 +349,67 @@ export default function App() {
     return <Landing navigate={navigate} />;
   };
 
+  const SidebarButton = ({ path, label, active = false }) => (
+    <button 
+      onClick={() => navigate(path)} 
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        padding: '0.75rem 1rem',
+        background: active ? 'var(--border-subtle)' : 'transparent',
+        border: 'none',
+        borderRadius: 'var(--radius-sm)',
+        cursor: 'pointer',
+        color: 'var(--text-main)',
+        fontSize: '0.92rem',
+        fontWeight: active ? 700 : 400,
+        transition: 'background 0.2s ease',
+        display: 'block'
+      }}>
+      {label}
+    </button>
+  );
+
   const renderMember = () => {
+    let content;
     if (route === 'book') content = <BookCourt navigate={navigate} />;
     else if (route === 'bookings') content = <MemberBookings navigate={navigate} />;
     else if (route === 'membership') content = <MemberMembership navigate={navigate} />;
     else if (route === 'shop') content = <MemberShop navigate={navigate} />;
     else if (route === 'cafe-orders') content = <MemberCafeOrders navigate={navigate} />;
+    else if (route === 'purchase-history') content = <PurchaseHistory navigate={navigate} />;
     else if (route === 'profile') content = <MemberProfile navigate={navigate} />;
     else content = <MemberHome navigate={navigate} />;
 
-    const SidebarButton = ({ path, label }) => (
-      <button 
-        onClick={() => navigate(path)} 
-        style={{
-          width: '100%',
-          textAlign: 'left',
-          padding: '0.75rem 1rem',
-          background: route === path || (route === 'home' && path === 'home') ? 'var(--border-subtle)' : 'transparent',
-          border: 'none',
-          borderRadius: 'var(--radius-sm)',
-          cursor: 'pointer',
-          color: 'var(--text-main)',
-          fontSize: '0.95rem',
-          fontWeight: route === path ? 600 : 400,
-          transition: 'background 0.2s ease'
-        }}>
-        {label}
-      </button>
-    );
-
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
-        {/* Sidebar */}
         <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('home')}>
             KINESIS<br/>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Sports Club</span>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Member Portal</span>
           </h2>
           
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Home</div>
-            <SidebarButton path="home" label="Dashboard" />
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.4rem', fontWeight: 600 }}>Home</div>
+            <SidebarButton path="home" label="Member Dashboard" active={route === 'home'} />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Play</div>
-            <SidebarButton path="book" label="Book Court" />
-            <SidebarButton path="bookings" label="My Bookings" />
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.4rem', fontWeight: 600 }}>Play Courts</div>
+            <SidebarButton path="book" label="Book a Court" active={route === 'book'} />
+            <SidebarButton path="bookings" label="My Bookings & Tickets" active={route === 'bookings'} />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Membership</div>
-            <SidebarButton path="membership" label="My Membership" />
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.4rem', fontWeight: 600 }}>Club Privileges</div>
+            <SidebarButton path="membership" label="My Membership" active={route === 'membership'} />
+            <SidebarButton path="shop" label="Shop & Café" active={route === 'shop'} />
+            <SidebarButton path="cafe-orders" label="My Café Orders" active={route === 'cafe-orders'} />
+            <SidebarButton path="purchase-history" label="Purchase History" active={route === 'purchase-history'} />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Club</div>
-            <SidebarButton path="shop" label="Shop & Café" />
-            <SidebarButton path="cafe-orders" label="My Café Orders" />
-          </div>
-
-          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
-            <SidebarButton path="profile" label="Profile" />
+          <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+            <SidebarButton path="profile" label="My Profile" active={route === 'profile'} />
             <button
               onClick={handleLogout}
               style={{
@@ -234,23 +420,162 @@ export default function App() {
                 border: 'none',
                 color: '#ef4444',
                 cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 500
+                fontSize: '0.92rem',
+                fontWeight: 600
               }}
             >
-              Logout
+              Sign Out
             </button>
-            <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+            <div style={{ marginTop: '0.75rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
-          {content}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+          <PortalHeader title="Member Portal" user={user} role={role} onProfileClick={() => navigate('profile')} />
+          <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+            {content}
+          </div>
         </div>
       </div>
     );
   };
+
+
+  const renderRestaurant = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: '#b45309', cursor: 'pointer' }} onClick={() => navigate('restaurant-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Restaurant Manager</span>
+        </h2>
+        <SidebarButton path="restaurant-dashboard" label="Dining Floor & Orders" active={true} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Restaurant Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          <RestaurantPortal navigate={navigate} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBar = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: '#d97706', cursor: 'pointer' }} onClick={() => navigate('bar-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Bar Manager</span>
+        </h2>
+        <SidebarButton path="bar-dashboard" label="Bar & Cellar Operations" active={true} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Bar Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          <BarPortal navigate={navigate} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderShop = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: '#10b981', cursor: 'pointer' }} onClick={() => navigate('shop-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Gear Shop Manager</span>
+        </h2>
+        <SidebarButton path="shop-dashboard" label="Pro Gear Inventory & Sales" active={true} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Gear Shop Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          <ShopManagerPortal navigate={navigate} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCourt = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('court-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Court Manager</span>
+        </h2>
+        <SidebarButton path="court-dashboard" label="Courts & E-Ticket Desk" active={true} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Court Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          <CourtManagerPortal navigate={navigate} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderStaff = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: '#b45309', cursor: 'pointer' }} onClick={() => navigate('staff-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Staff / HR Portal</span>
+        </h2>
+        <SidebarButton path="staff-dashboard" label="Staff, Shifts & Leaves" active={route === 'staff-dashboard'} />
+        <SidebarButton path="staff-inventory" label="Inventory Overview" active={route === 'staff-inventory'} />
+        <SidebarButton path="staff-tables" label="Café Tables" active={route === 'staff-tables'} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Staff & HR Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          {route === 'staff-inventory' ? <StaffInventory navigate={navigate} /> :
+           route === 'staff-tables' ? <StaffTables navigate={navigate} /> :
+           <StaffManagerPortal navigate={navigate} />}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderReception = () => (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('reception-dashboard')}>
+          KINESIS<br/>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Reception Desk</span>
+        </h2>
+        <SidebarButton path="reception-dashboard" label="Front Desk & Registration" active={true} />
+        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
+          <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <PortalHeader title="Reception Operations" user={user} role={role} />
+        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+          <ReceptionPortal navigate={navigate} />
+        </div>
+      </div>
+    </div>
+  );
 
   const renderAdmin = () => {
     let content;
@@ -258,82 +583,87 @@ export default function App() {
     else if (route === 'admin-inventory') content = <AdminInventory navigate={navigate} />;
     else if (route === 'admin-operations') content = <AdminOperations navigate={navigate} />;
     else if (route === 'admin-kitchen') content = <AdminKitchen navigate={navigate} />;
+    else if (route === 'admin-members') content = <AdminMembers navigate={navigate} />;
+    else if (route === 'admin-analytics') content = <AdminAnalytics navigate={navigate} />;
+    else if (route === 'admin-tables') content = <AdminTables navigate={navigate} />;
+    else if (route === 'admin-offers') content = <AdminOffersAndPlans navigate={navigate} />;
+    else if (route === 'restaurant-dashboard') content = <RestaurantPortal navigate={navigate} />;
+    else if (route === 'bar-dashboard') content = <BarPortal navigate={navigate} />;
+    else if (route === 'shop-dashboard') content = <ShopManagerPortal navigate={navigate} />;
+    else if (route === 'court-dashboard') content = <CourtManagerPortal navigate={navigate} />;
+    else if (route === 'staff-dashboard') content = <StaffManagerPortal navigate={navigate} />;
+    else if (route === 'reception-dashboard') content = <ReceptionPortal navigate={navigate} />;
     else content = <AdminDashboard navigate={navigate} />;
-
-    const SidebarButton = ({ path, label }) => (
-      <button 
-        onClick={() => navigate(path)} 
-        style={{
-          width: '100%',
-          textAlign: 'left',
-          padding: '0.75rem 1rem',
-          background: route === path || (!route.startsWith('admin-') && path === 'admin-dashboard') ? 'var(--border-subtle)' : 'transparent',
-          border: 'none',
-          borderRadius: 'var(--radius-sm)',
-          cursor: 'pointer',
-          color: 'var(--text-main)',
-          fontSize: '0.95rem',
-          fontWeight: route === path ? 600 : 400,
-          transition: 'background 0.2s ease'
-        }}>
-        {label}
-      </button>
-    );
 
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
-        <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('admin-dashboard')}>
+        <div style={{ width: '270px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ margin: '0 0 1.75rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('admin-dashboard')}>
             KINESIS<br/>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>ADMIN</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Executive Admin</span>
           </h2>
           
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Main</div>
-            <SidebarButton path="admin-dashboard" label="Dashboard" />
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.35rem', fontWeight: 700 }}>Executive</div>
+            <SidebarButton path="admin-dashboard" label="Financial Dashboard" active={route === 'admin-dashboard'} />
+            <SidebarButton path="admin-analytics" label="Revenue Analytics" active={route === 'admin-analytics'} />
+            <SidebarButton path="admin-offers" label="Offers, Plans & Audit" active={route === 'admin-offers'} />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 600 }}>Management</div>
-            <SidebarButton path="admin-courts" label="Courts" />
-            <SidebarButton path="admin-inventory" label="Inventory" />
-            <SidebarButton path="admin-operations" label="Operations" />
-            <SidebarButton path="admin-kitchen" label="Orders & Kitchen" />
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.35rem', fontWeight: 700 }}>Club Portals</div>
+            <SidebarButton path="reception-dashboard" label="Reception Portal" active={route === 'reception-dashboard'} />
+            <SidebarButton path="court-dashboard" label="Court Management" active={route === 'court-dashboard'} />
+            <SidebarButton path="restaurant-dashboard" label="Restaurant Portal" active={route === 'restaurant-dashboard'} />
+            <SidebarButton path="bar-dashboard" label="Bar Portal" active={route === 'bar-dashboard'} />
+            <SidebarButton path="shop-dashboard" label="Gear Shop Portal" active={route === 'shop-dashboard'} />
+            <SidebarButton path="staff-dashboard" label="Staff / HR Portal" active={route === 'staff-dashboard'} />
           </div>
 
-          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.35rem', fontWeight: 700 }}>Core Records</div>
+            <SidebarButton path="admin-members" label="Members Directory" active={route === 'admin-members'} />
+            <SidebarButton path="admin-kitchen" label="Orders & Kitchen" active={route === 'admin-kitchen'} />
+            <SidebarButton path="admin-operations" label="Daily Operations" active={route === 'admin-operations'} />
+          </div>
+
+          <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
             <button
               onClick={handleLogout}
               style={{
                 width: '100%',
                 textAlign: 'left',
-                padding: '0.75rem 1rem',
+                padding: '0.65rem 1rem',
                 background: 'transparent',
                 border: 'none',
                 color: '#ef4444',
                 cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: 500
+                fontSize: '0.92rem',
+                fontWeight: 600
               }}
             >
-              Logout
+              Sign Out
             </button>
-            <div style={{ marginTop: '1rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
+            <div style={{ marginTop: '0.75rem', paddingLeft: '1rem' }}><ThemeToggle /></div>
           </div>
         </div>
         
-        <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
-          {content}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+          <PortalHeader title="Executive Administration" user={user} role={role} />
+          <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
+            {content}
+          </div>
         </div>
       </div>
     );
   };
 
+
   // If unauthenticated, show public pages
   if (!user) {
     return (
       <>
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+        <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 110 }}>
           <ThemeToggle />
         </div>
         {renderPublic()}
@@ -341,9 +671,16 @@ export default function App() {
     );
   }
 
-  // Role-based views
-  if (role?.toUpperCase() === 'MEMBER') return renderMember();
-  if (role?.toUpperCase() === 'ADMIN') return renderAdmin();
+  // Role-based views for the 8 authorized roles
+  const r = (role || '').toUpperCase();
+  if (r === 'MEMBER') return renderMember();
+  if (r === 'RESTAURANT_MANAGER') return renderRestaurant();
+  if (r === 'BAR_MANAGER') return renderBar();
+  if (r === 'SHOP_MANAGER') return renderShop();
+  if (r === 'COURT_MANAGER') return renderCourt();
+  if (r === 'STAFF_MANAGER' || r === 'STAFF') return renderStaff();
+  if (r === 'RECEPTION') return renderReception();
+  if (r === 'ADMIN') return renderAdmin();
 
   return (
     <div style={{ padding: '3rem', textAlign: 'center' }}>

@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@backend/services/supabaseClient.js';
+import { getCourtRevenueStats } from '@backend/services/revenueService.js';
+import CurrentDate from '../../components/CurrentDate.jsx';
 
 export default function AdminCourts() {
   const [courts, setCourts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalCourtRevenue: 0,
+    todayCourtRevenue: 0,
+    todayBookingsCount: 0
+  });
 
   useEffect(() => {
     async function fetchCourts() {
@@ -25,6 +32,14 @@ export default function AdminCourts() {
           todayBookings: counts[c.id] || 0
         })));
       }
+
+      try {
+        const revStats = await getCourtRevenueStats();
+        setStats(revStats);
+      } catch (err) {
+        console.error('Error loading court revenue stats:', err);
+      }
+
       setLoading(false);
     }
     fetchCourts();
@@ -34,7 +49,54 @@ export default function AdminCourts() {
 
   return (
     <div style={{ maxWidth: '1000px' }}>
-      <h1 style={{ marginBottom: '2rem' }}>Courts & Sports</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '2.2rem' }}>Court Management</h1>
+          <p style={{ margin: '0.4rem 0 0 0', color: 'var(--text-muted)' }}>
+            Overview of club courts, sport categories, and 30-minute booking rates
+          </p>
+        </div>
+        <CurrentDate />
+      </div>
+
+      {/* COURT MANAGEMENT REVENUE SUMMARY BANNER */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #3b82f6' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+            Total Court Revenue
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+            ₹{stats.totalCourtRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            All-time court bookings
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #10b981' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+            Today's Court Revenue
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+            ₹{stats.todayCourtRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            Bookings generated today
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid #8b5cf6' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem', fontWeight: 600 }}>
+            Bookings Today
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            {stats.todayBookingsCount}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+            Active slots reserved today
+          </div>
+        </div>
+      </div>
       
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {courts.length > 0 ? (
@@ -43,7 +105,7 @@ export default function AdminCourts() {
               <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '1rem', fontWeight: 600 }}>Court Name</th>
                 <th style={{ padding: '1rem', fontWeight: 600 }}>Sport</th>
-                <th style={{ padding: '1rem', fontWeight: 600 }}>Hourly Rate</th>
+                <th style={{ padding: '1rem', fontWeight: 600 }}>Rate / 30 Min</th>
                 <th style={{ padding: '1rem', fontWeight: 600 }}>Status</th>
                 <th style={{ padding: '1rem', fontWeight: 600, textAlign: 'right' }}>Today's Bookings</th>
               </tr>
@@ -53,7 +115,7 @@ export default function AdminCourts() {
                 <tr key={c.id} style={{ borderBottom: i < courts.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
                   <td style={{ padding: '1.25rem 1rem', fontWeight: 500 }}>{c.name}</td>
                   <td style={{ padding: '1.25rem 1rem' }}>{c.sport}</td>
-                  <td style={{ padding: '1.25rem 1rem' }}>₹{c.hourly_rate}</td>
+                  <td style={{ padding: '1.25rem 1rem', fontFamily: 'var(--font-mono)' }}>₹{Number(c.hourly_rate).toFixed(0)} / 30 min</td>
                   <td style={{ padding: '1.25rem 1rem' }}>
                     <span style={{ 
                       fontSize: '0.8rem', padding: '4px 10px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600,

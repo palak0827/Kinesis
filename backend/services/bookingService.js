@@ -1,5 +1,6 @@
 import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 import { getMemberById } from './memberService.js';
+import { createNotification } from './notificationService.js';
 
 /**
  * Fetch all courts
@@ -171,7 +172,9 @@ export async function checkCourtAvailability(courtId, date, startTime, endTime, 
 
 /**
  * Business Rule 2 & 8: Check member's daily booking limit.
- * - Default: up to 2 bookings per day (or plan limit, e.g. Junior is 1)
+ * - Walk-In: MAX 1 court booking per day
+ * - Expired member: treated as Walk-In (MAX 1 court booking per day)
+ * - Active member: uses membership_plans.daily_booking_limit from PostgreSQL
  * - Cancelled bookings do NOT count against daily limit
  */
 export async function checkMemberDailyLimit(memberId, date) {
@@ -182,22 +185,34 @@ export async function checkMemberDailyLimit(memberId, date) {
     return { allowed: false, reason: 'Member not found' };
   }
 
-  // Active check
-  if (member.status !== 'active') {
-    return {
-      allowed: false,
-      reason: `Membership is ${member.status}. Only active members can book courts.`
-    };
+  const isWalkIn = member.user_type === 'WALK_IN' || (!member.plan_id && !member.membership_plans);
+  let isExpired = member.status === 'expired';
+  if (member.expiry_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(member.expiry_date);
+    exp.setHours(23, 59, 59, 999);
+    if (today > exp) isExpired = true;
   }
 
-  // Limit based on membership plan (default: 2)
-  const limit = member.membership_plans?.daily_booking_limit || 2;
+  // Walk-In and expired members receive max 1 booking per day
+  const limit = (isWalkIn || isExpired)
+    ? 1
+    : (member.membership_plans?.daily_booking_limit || 2);
 
   // Count active confirmed bookings by this member on the given date
   const bookings = await getBookings({ member_id: mId, date });
   const activeCount = bookings.filter((b) => b.status !== 'cancelled').length;
 
   if (activeCount >= limit) {
+    if (isWalkIn || isExpired) {
+      return {
+        allowed: false,
+        count: activeCount,
+        limit,
+        reason: 'Walk-In accounts can make one court booking per day. Become a member for higher daily booking limits.'
+      };
+    }
     return {
       allowed: false,
       count: activeCount,
@@ -217,35 +232,54 @@ export async function checkMemberDailyLimit(memberId, date) {
 /**
  * Business Rule 5, 6 & 8: Centralized booking price calculation.
  * Formula:
- * Final Price = Court Hourly Rate * (1 - (Court Discount % / 100))
- * If member is expired or inactive, 0% discount is applied (full price).
+ * numberOfSlots = durationMinutes / 30
+ * Base Price = Court 30-Min Rate * numberOfSlots
+ * Final Price = Base Price - (Base Price * (Court Discount % / 100))
+ * If member is Walk-In or expired, 0% discount is applied (public rate).
  */
-export async function calculateBookingPrice(courtId, memberId) {
+export async function calculateBookingPrice(courtId, memberId, durationMinutes = 30) {
   const courts = await getCourts();
   const court = courts.find((c) => c.id === Number(courtId));
   if (!court) throw new Error('Court not found');
 
-  const baseRate = Number(court.hourly_rate);
+  const slotRate = Number(court.hourly_rate); // Represents the 30-minute slot rate
+  const minutes = Math.max(30, Number(durationMinutes) || 30);
+  const numberOfSlots = Math.max(1, Math.round(minutes / 30));
+  const baseRate = Number((slotRate * numberOfSlots).toFixed(2));
+
   if (!memberId) {
     return {
       courtId: court.id,
       courtName: court.name,
+      ratePer30Min: slotRate,
+      durationMinutes: minutes,
+      numberOfSlots,
       baseRate,
       discountPercent: 0,
       discountAmount: 0,
       finalPrice: baseRate,
-      planName: 'Guest'
+      planName: 'Walk-In Guest'
     };
   }
 
   const member = await getMemberById(memberId);
   if (!member) throw new Error('Member not found');
 
-  let discountPercent = 0;
-  let planName = 'None';
+  const isWalkIn = member.user_type === 'WALK_IN' || (!member.plan_id && !member.membership_plans);
+  let isExpired = member.status === 'expired';
+  if (member.expiry_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(member.expiry_date);
+    exp.setHours(23, 59, 59, 999);
+    if (today > exp) isExpired = true;
+  }
 
-  // Rule 8: Expired/inactive memberships do NOT receive active-member benefits
-  if (member.status === 'active' && member.membership_plans) {
+  let discountPercent = 0;
+  let planName = isWalkIn ? 'Walk-In Guest' : isExpired ? 'Expired Member' : 'None';
+
+  // Active paid members receive tier discount
+  if (!isWalkIn && !isExpired && member.status === 'active' && member.membership_plans) {
     discountPercent = Number(member.membership_plans.court_discount) || 0;
     planName = member.membership_plans.name;
   }
@@ -256,22 +290,27 @@ export async function calculateBookingPrice(courtId, memberId) {
   return {
     courtId: court.id,
     courtName: court.name,
+    ratePer30Min: slotRate,
+    durationMinutes: minutes,
+    numberOfSlots,
     baseRate,
     discountPercent,
     discountAmount,
     finalPrice,
     planName,
-    memberStatus: member.status
+    memberStatus: member.status,
+    isWalkIn
   };
 }
 
 /**
  * Create a new court booking enforcing all business rules:
- * - 1 hour duration
+ * - 30, 60, 90, 120 min durations
  * - 30-min start intervals
- * - Court availability (no overlap)
- * - Member daily limit
- * - Centralized price calculation
+ * - Court availability (no overlap over entire duration)
+ * - Member/Walk-In daily limit (1/day for Walk-In)
+ * - Centralized price calculation with slot multiplier
+ * - Audit payment method & status
  */
 export async function createBooking(params = {}) {
   const memberId = params.memberId ?? params.member_id;
@@ -279,6 +318,8 @@ export async function createBooking(params = {}) {
   const bookingDate = params.bookingDate ?? params.booking_date;
   const startTime = params.startTime ?? params.start_time;
   const providedEndTime = params.endTime ?? params.end_time;
+  const paymentMethod = params.paymentMethod ?? params.payment_method ?? 'UPI';
+  const paymentStatus = params.paymentStatus ?? params.payment_status ?? 'PAID';
 
   const mId = Number(memberId);
   const cId = Number(courtId);
@@ -287,29 +328,34 @@ export async function createBooking(params = {}) {
     throw new Error('Member, Court, Booking Date, and Start Time are required.');
   }
 
-  // Calculate 1-hour end time if not explicitly provided
+  // Calculate 30-min or provided end time
   let endTime = providedEndTime;
   if (!endTime) {
     const [h, m] = startTime.split(':').map(Number);
-    const endH = String(h + 1).padStart(2, '0');
-    const endM = String(m).padStart(2, '0');
+    const endTotal = h * 60 + m + (params.durationMinutes ? Number(params.durationMinutes) : 30);
+    const endH = String(Math.floor(endTotal / 60)).padStart(2, '0');
+    const endM = String(endTotal % 60).padStart(2, '0');
     endTime = `${endH}:${endM}`;
   }
 
-  // Rule 2 & 8: Check daily limit
+  const startMins = timeToMinutes(startTime);
+  const endMins = timeToMinutes(endTime);
+  const bookingDuration = Math.max(30, endMins - startMins);
+
+  // Rule 2 & 8: Check daily limit (Walk-In = 1, Member = plan limit)
   const limitCheck = await checkMemberDailyLimit(mId, bookingDate);
   if (!limitCheck.allowed) {
     throw new Error(limitCheck.reason);
   }
 
-  // Rule 1: Check availability & overlaps
+  // Rule 1: Check availability & overlaps across the entire interval
   const availability = await checkCourtAvailability(cId, bookingDate, startTime, endTime);
   if (!availability.available) {
     throw new Error(availability.reason);
   }
 
-  // Rule 5 & 6: Centrally calculate price
-  const priceCalc = await calculateBookingPrice(cId, mId);
+  // Rule 5 & 6: Centrally calculate price with duration multiplier
+  const priceCalc = await calculateBookingPrice(cId, mId, bookingDuration);
 
   const newBooking = {
     member_id: mId,
@@ -324,6 +370,56 @@ export async function createBooking(params = {}) {
 
   if (shouldUseSupabase()) {
     try {
+      // 1. Attempt PostgreSQL stored procedure with transaction-level advisory lock
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('concurrency_safe_book_court', {
+          p_member_id: mId,
+          p_court_id: cId,
+          p_booking_date: bookingDate,
+          p_start_time: newBooking.start_time,
+          p_end_time: newBooking.end_time,
+          p_price: priceCalc.finalPrice
+        });
+
+        if (!rpcErr && rpcRes) {
+          if (!rpcRes.success) {
+            throw new Error(rpcRes.message || 'This time slot was just booked by another customer. Please choose another slot.');
+          }
+          // Fetch full joined booking details
+          const { data: bData } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              members (
+                id,
+                name,
+                email,
+                status,
+                membership_plans (id, name, court_discount, daily_booking_limit)
+              ),
+              courts (id, name, sport, hourly_rate)
+            `)
+            .eq('id', rpcRes.booking_id)
+            .single();
+
+          if (bData) {
+            return {
+              ...bData,
+              payment_method: paymentMethod,
+              payment_status: paymentStatus
+            };
+          }
+        }
+      } catch (rpcEx) {
+        const rMsg = String(rpcEx.message || '');
+        if (rMsg.includes('another customer') || rMsg.includes('SLOT_ALREADY_BOOKED')) {
+          throw rpcEx;
+        }
+        // If RPC function is not yet migrated in Supabase, fall through to two-phase atomic validation
+      }
+
+      // 2. TWO-PHASE ATOMIC INSERTION WITH CONFLICT RESOLUTION
+      // Step A: Insert candidate confirmed booking
       const { data, error } = await supabase
         .from('bookings')
         .insert([newBooking])
@@ -339,9 +435,47 @@ export async function createBooking(params = {}) {
           courts (id, name, sport, hourly_rate)
         `)
         .single();
-      if (error) throw error;
-      if (data) return data;
+
+      if (error) {
+        if (error.code === '23505' || String(error.message).includes('unique') || String(error.message).includes('idx_unique_court_slot')) {
+          throw new Error('This time slot was just booked by another customer. Please choose another slot.');
+        }
+        throw error;
+      }
+
+      // Step B: Re-verify against any concurrent transaction that committed with a lower ID
+      // If two requests arrived almost simultaneously, the first transaction gets a lower ID.
+      // The second transaction detects the collision and immediately rolls back its own record.
+      const { data: conflicts } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('court_id', cId)
+        .eq('booking_date', bookingDate)
+        .eq('status', 'confirmed')
+        .lt('start_time', newBooking.end_time)
+        .gt('end_time', newBooking.start_time)
+        .lt('id', data.id);
+
+      if (conflicts && conflicts.length > 0) {
+        // Concurrency race lost: another customer acquired the slot milliseconds earlier
+        await supabase.from('bookings').delete().eq('id', data.id);
+        throw new Error('This time slot was just booked by another customer. Please choose another slot.');
+      }
+
+      if (data) {
+        const finalBooking = {
+          ...data,
+          payment_method: paymentMethod,
+          payment_status: paymentStatus
+        };
+        dispatchBookingCreatedNotifications(finalBooking, data.members, data.courts);
+        return finalBooking;
+      }
     } catch (err) {
+      const msg = String(err.message || '');
+      if (msg.includes('23505') || msg.includes('unique') || msg.includes('booked by another customer')) {
+        throw new Error('This time slot was just booked by another customer. Please choose another slot.');
+      }
       console.error('Supabase createBooking error:', err);
       throw err;
     }
@@ -362,11 +496,123 @@ export async function createBooking(params = {}) {
   const courts = await getCourts();
   const court = courts.find((c) => c.id === cId);
 
-  return {
+  const finalLocal = {
     ...created,
     members: member,
     courts: court
   };
+  dispatchBookingCreatedNotifications(finalLocal, member, court);
+  return finalLocal;
+}
+
+/**
+ * Dispatch booking notifications non-blockingly
+ */
+async function dispatchBookingCreatedNotifications(booking, member, court) {
+  try {
+    const courtName = court?.name || `Court #${booking.court_id}`;
+    const startTimeStr = String(booking.start_time || '').slice(0, 5);
+    const endTimeStr = String(booking.end_time || '').slice(0, 5);
+    const dateStr = booking.booking_date;
+
+    // Member Notification
+    await createNotification({
+      recipientType: 'MEMBER',
+      recipientId: booking.member_id,
+      role: 'MEMBER',
+      title: 'Court Booking Confirmed',
+      message: `Your ${courtName} booking is confirmed for ${startTimeStr} on ${dateStr}.`,
+      type: 'BOOKING',
+      referenceId: booking.id,
+      referenceType: 'BOOKING'
+    });
+
+    // Court Manager Notification
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'COURT_MANAGER',
+      title: 'New Court Booking',
+      message: `Booking #${booking.id} created for ${courtName} (${startTimeStr} - ${endTimeStr}) on ${dateStr}.`,
+      type: 'BOOKING',
+      referenceId: booking.id,
+      referenceType: 'BOOKING'
+    });
+
+    // Reception Notification
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'RECEPTION',
+      title: 'New Court Booking',
+      message: `Court booking #${booking.id} confirmed for ${courtName} on ${dateStr}.`,
+      type: 'BOOKING',
+      referenceId: booking.id,
+      referenceType: 'BOOKING'
+    });
+
+    // Admin Notification
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'ADMIN',
+      title: 'New Court Booking',
+      message: `New booking #${booking.id} on ${courtName} (₹${booking.price || 0}).`,
+      type: 'BOOKING',
+      referenceId: booking.id,
+      referenceType: 'BOOKING'
+    });
+  } catch (e) {
+    console.warn('Non-blocking notification dispatch error in bookingService:', e);
+  }
+}
+
+async function dispatchBookingCancelledNotifications(bookingId, booking) {
+  try {
+    const memberId = booking?.member_id;
+
+    if (memberId) {
+      await createNotification({
+        recipientType: 'MEMBER',
+        recipientId: memberId,
+        role: 'MEMBER',
+        title: 'Court Booking Cancelled',
+        message: `Your booking #${bookingId} has been cancelled.`,
+        type: 'BOOKING',
+        referenceId: bookingId,
+        referenceType: 'BOOKING'
+      });
+    }
+
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'COURT_MANAGER',
+      title: 'Court Booking Cancelled',
+      message: `Booking #${bookingId} has been cancelled and the court is available again.`,
+      type: 'BOOKING',
+      referenceId: bookingId,
+      referenceType: 'BOOKING'
+    });
+
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'RECEPTION',
+      title: 'Court Booking Cancelled',
+      message: `Booking #${bookingId} has been cancelled.`,
+      type: 'BOOKING',
+      referenceId: bookingId,
+      referenceType: 'BOOKING'
+    });
+
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'ADMIN',
+      title: 'Court Booking Cancelled',
+      message: `Booking #${bookingId} was cancelled.`,
+      type: 'BOOKING',
+      referenceId: bookingId,
+      referenceType: 'BOOKING'
+    });
+  } catch (e) {
+    console.warn('Non-blocking notification dispatch error in bookingService:', e);
+  }
 }
 
 /**
@@ -384,7 +630,10 @@ export async function cancelBooking(bookingId) {
         .eq('id', bId)
         .select()
         .single();
-      if (!error && data) return data;
+      if (!error && data) {
+        dispatchBookingCancelledNotifications(bId, data);
+        return data;
+      }
       if (error) throw error;
     } catch (err) {
       console.warn('Supabase cancelBooking error, fallback to local:', err);
@@ -397,5 +646,7 @@ export async function cancelBooking(bookingId) {
   localStore.bookings[index].status = 'cancelled';
   localStore.saveBookings();
 
+  dispatchBookingCancelledNotifications(bId, localStore.bookings[index]);
   return localStore.bookings[index];
 }
+

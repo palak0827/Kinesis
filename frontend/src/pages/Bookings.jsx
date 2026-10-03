@@ -384,7 +384,7 @@ export default function Bookings() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                         <span>{court.sport}</span>
-                        <span style={{ color: '#10b981', fontWeight: 600 }}>₹{court.hourly_rate}/hr</span>
+                        <span style={{ color: '#10b981', fontWeight: 600 }}>₹{Number(court.hourly_rate).toFixed(0)} / 30 min</span>
                       </div>
                     </th>
                   ))}
@@ -652,7 +652,7 @@ export default function Bookings() {
             >
               {courts.map((c) => (
                 <option key={c.id} value={c.id} disabled={c.status === 'maintenance'}>
-                  {c.name} ({c.sport}) - ₹{c.hourly_rate}/hr {c.status === 'maintenance' ? '[MAINTENANCE]' : ''}
+                  {c.name} ({c.sport}) - ₹{Number(c.hourly_rate).toFixed(0)} / 30 min {c.status === 'maintenance' ? '[MAINTENANCE]' : ''}
                 </option>
               ))}
             </select>
@@ -742,8 +742,8 @@ export default function Bookings() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                <span>Court Base Rate (1 hr):</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>₹{priceBreakdown.baseRate.toFixed(2)}</span>
+                <span>Court Base Rate ({priceBreakdown.numberOfSlots || 1} × 30 min):</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>₹{Number(priceBreakdown.baseRate).toFixed(2)}</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#06b6d4', marginBottom: '8px' }}>

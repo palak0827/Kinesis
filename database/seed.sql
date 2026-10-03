@@ -5,9 +5,9 @@
 -- 1. Insert Membership Plans
 INSERT INTO membership_plans (id, name, monthly_price, court_discount, shop_discount, bar_discount, daily_booking_limit)
 VALUES
-    (1, 'Gold', 120.00, 50.00, 20.00, 15.00, 2),
-    (2, 'Silver', 75.00, 25.00, 10.00, 10.00, 2),
-    (3, 'Junior', 45.00, 35.00, 15.00, 10.00, 1)
+    (1, 'Gold', 499.00, 50.00, 20.00, 15.00, 2),
+    (2, 'Silver', 299.00, 25.00, 10.00, 10.00, 2),
+    (3, 'Junior', 199.00, 35.00, 15.00, 10.00, 1)
 ON CONFLICT (id) DO UPDATE 
 SET name = EXCLUDED.name,
     monthly_price = EXCLUDED.monthly_price,
@@ -34,38 +34,72 @@ ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('members_id_seq', (SELECT MAX(id) FROM members));
 
--- 3. Insert Courts
+-- 3. Insert Courts (Rates per 30-minute slot)
 INSERT INTO courts (id, name, sport, hourly_rate, status)
 VALUES
-    (1, 'Tennis Court 1 (Clay)', 'Tennis', 40.00, 'available'),
-    (2, 'Tennis Court 2 (Hard)', 'Tennis', 36.00, 'available'),
-    (3, 'Squash Court A', 'Squash', 28.00, 'available'),
-    (4, 'Squash Court B', 'Squash', 28.00, 'maintenance'),
-    (5, 'Badminton Court 1', 'Badminton', 24.00, 'available'),
-    (6, 'Padel Court 1 (Panoramic)', 'Padel', 44.00, 'available'),
-    (7, 'Cricket Practice Net 1', 'Cricket', 30.00, 'available'),
-    (8, 'Cricket Main Ground', 'Cricket', 60.00, 'available')
+    (1, 'Tennis Court 1 (Clay)', 'Tennis', 200.00, 'available'),
+    (2, 'Tennis Court 2 (Hard)', 'Tennis', 200.00, 'available'),
+    (3, 'Squash Court A', 'Squash', 150.00, 'available'),
+    (4, 'Squash Court B', 'Squash', 150.00, 'maintenance'),
+    (5, 'Badminton Court 1', 'Badminton', 100.00, 'available'),
+    (6, 'Padel Court 1 (Panoramic)', 'Padel', 250.00, 'available'),
+    (7, 'Cricket Practice Net 1', 'Cricket', 200.00, 'available'),
+    (8, 'Cricket Main Ground', 'Cricket', 400.00, 'available')
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('courts_id_seq', (SELECT MAX(id) FROM courts));
 
--- 4. Insert Products
+-- 4. Insert Products (Gear Shop & Café & Bar)
 INSERT INTO products (id, name, category, price, stock_quantity, low_stock_threshold, created_at)
 VALUES
-    (1, 'Wilson Pro Staff 97 v14', 'Rackets', 220.00, 8, 3, NOW() - INTERVAL '30 days'),
-    (2, 'Head Speed MP 2024', 'Rackets', 195.00, 2, 3, NOW() - INTERVAL '30 days'),
-    (3, 'Babolat Team All Court (4-Can)', 'Balls', 9.50, 48, 15, NOW() - INTERVAL '30 days'),
-    (4, 'Dunlop Pro Squash Balls (3-Pack)', 'Balls', 14.00, 24, 8, NOW() - INTERVAL '30 days'),
-    (5, 'Yonex Mavis 350 Shuttlecocks (6-Tube)', 'Accessories', 18.00, 3, 5, NOW() - INTERVAL '30 days'),
-    (6, 'Bullpadel Hack 03 Padel Racket', 'Rackets', 260.00, 5, 2, NOW() - INTERVAL '30 days'),
-    (7, 'Kinesis Pro Club Tech Polo', 'Apparel', 52.00, 16, 5, NOW() - INTERVAL '30 days'),
-    (8, 'Kinesis Microfibre Quick-Dry Towel', 'Accessories', 22.00, 22, 6, NOW() - INTERVAL '30 days'),
-    (9, 'HydroFuel Electrolyte Performance 500ml', 'Drinks & Nutrition', 4.50, 55, 12, NOW() - INTERVAL '30 days'),
-    (10, 'PureWhey High Protein Crisp Bar', 'Drinks & Nutrition', 3.50, 42, 10, NOW() - INTERVAL '30 days'),
-    (11, 'Artisan Roast Cold Brew Coffee', 'Café', 4.50, 40, 10, NOW() - INTERVAL '30 days'),
-    (12, 'Club Sourdough Chicken Panini', 'Café', 8.50, 25, 8, NOW() - INTERVAL '30 days'),
-    (13, 'Acai Energy Recovery Bowl', 'Café', 7.00, 30, 8, NOW() - INTERVAL '30 days')
-ON CONFLICT (id) DO NOTHING;
+    (1, 'Wilson Pro Staff 97 v14', 'Rackets', 499.00, 8, 3, NOW() - INTERVAL '30 days'),
+    (2, 'Head Speed MP 2024', 'Rackets', 449.00, 2, 3, NOW() - INTERVAL '30 days'),
+    (3, 'Babolat Team All Court (4-Can)', 'Balls', 249.00, 48, 15, NOW() - INTERVAL '30 days'),
+    (4, 'Dunlop Pro Squash Balls (3-Pack)', 'Balls', 199.00, 24, 8, NOW() - INTERVAL '30 days'),
+    (5, 'Yonex Mavis 350 Shuttlecocks (6-Tube)', 'Accessories', 249.00, 3, 5, NOW() - INTERVAL '30 days'),
+    (6, 'Bullpadel Hack 03 Padel Racket', 'Rackets', 499.00, 5, 2, NOW() - INTERVAL '30 days'),
+    (7, 'Kinesis Pro Club Tech Polo', 'Apparel', 449.00, 16, 5, NOW() - INTERVAL '30 days'),
+    (8, 'Kinesis Microfibre Quick-Dry Towel', 'Accessories', 199.00, 22, 6, NOW() - INTERVAL '30 days'),
+    (9, 'HydroFuel Electrolyte Performance 500ml', 'Drinks', 99.00, 55, 12, NOW() - INTERVAL '30 days'),
+    (10, 'PureWhey High Protein Crisp Bar', 'Snacks', 119.00, 42, 10, NOW() - INTERVAL '30 days'),
+    (11, 'Artisan Roast Cold Brew Coffee', 'Drinks', 149.00, 40, 10, NOW() - INTERVAL '30 days'),
+    (12, 'Club Sourdough Chicken Panini', 'Food', 249.00, 25, 8, NOW() - INTERVAL '30 days'),
+    (13, 'Acai Energy Recovery Bowl', 'Food', 279.00, 30, 8, NOW() - INTERVAL '30 days'),
+    (14, 'Iced Tea', 'Drinks', 109.00, 40, 8, NOW() - INTERVAL '20 days'),
+    (15, 'Cold Coffee', 'Drinks', 129.00, 35, 8, NOW() - INTERVAL '20 days'),
+    (16, 'Cold Brew', 'Drinks', 149.00, 30, 6, NOW() - INTERVAL '20 days'),
+    (17, 'Protein Shake', 'Drinks', 199.00, 30, 6, NOW() - INTERVAL '20 days'),
+    (18, 'Fresh Fruit Juice', 'Drinks', 129.00, 35, 8, NOW() - INTERVAL '20 days'),
+    (19, 'Electrolyte Drink', 'Drinks', 99.00, 50, 10, NOW() - INTERVAL '15 days'),
+    (20, 'Virgin Mojito', 'Mocktails', 149.00, 35, 8, NOW() - INTERVAL '15 days'),
+    (21, 'Blue Lagoon', 'Mocktails', 159.00, 30, 6, NOW() - INTERVAL '15 days'),
+    (22, 'Berry Fizz', 'Mocktails', 169.00, 25, 6, NOW() - INTERVAL '15 days'),
+    (23, 'Tropical Punch', 'Mocktails', 179.00, 25, 5, NOW() - INTERVAL '15 days'),
+    (24, 'Watermelon Cooler', 'Mocktails', 149.00, 30, 6, NOW() - INTERVAL '15 days'),
+    (25, 'French Fries', 'Snacks', 129.00, 40, 10, NOW() - INTERVAL '15 days'),
+    (26, 'Veg Sandwich', 'Snacks', 149.00, 30, 8, NOW() - INTERVAL '15 days'),
+    (27, 'Grilled Sandwich', 'Snacks', 179.00, 25, 6, NOW() - INTERVAL '15 days'),
+    (28, 'Protein Bar', 'Snacks', 119.00, 60, 12, NOW() - INTERVAL '15 days'),
+    (29, 'Nachos', 'Snacks', 169.00, 35, 8, NOW() - INTERVAL '15 days'),
+    (30, 'Veg Panini', 'Food', 199.00, 25, 6, NOW() - INTERVAL '15 days'),
+    (31, 'Chicken Panini', 'Food', 249.00, 20, 5, NOW() - INTERVAL '15 days'),
+    (32, 'Paneer Wrap', 'Food', 219.00, 20, 5, NOW() - INTERVAL '15 days'),
+    (33, 'Chicken Wrap', 'Food', 249.00, 18, 5, NOW() - INTERVAL '15 days'),
+    (34, 'Pasta', 'Food', 229.00, 20, 5, NOW() - INTERVAL '15 days'),
+    (35, 'Healthy Bowl', 'Food', 249.00, 22, 5, NOW() - INTERVAL '15 days'),
+    (36, 'Recovery Bowl', 'Food', 279.00, 22, 5, NOW() - INTERVAL '15 days'),
+    (37, 'Mineral Water', 'Drinks', 40.00, 60, 15, NOW() - INTERVAL '10 days'),
+    (38, 'Fresh Lime Soda', 'Drinks', 89.00, 40, 10, NOW() - INTERVAL '10 days'),
+    (39, 'Lemon Mint Cooler', 'Drinks', 99.00, 35, 10, NOW() - INTERVAL '10 days'),
+    (40, 'Gray-Nicolls Powerbow Cricket Bat', 'Rackets', 499.00, 6, 2, NOW() - INTERVAL '10 days'),
+    (41, 'SG Test Cricket Leather Ball', 'Balls', 349.00, 20, 6, NOW() - INTERVAL '10 days'),
+    (42, 'Yonex Astrox 88D Pro Badminton Racket', 'Rackets', 449.00, 8, 2, NOW() - INTERVAL '10 days'),
+    (43, 'Kinesis Pro Performance T-Shirt', 'Apparel', 299.00, 20, 6, NOW() - INTERVAL '10 days'),
+    (44, 'Kinesis Tour Club Sports Bag', 'Accessories', 399.00, 12, 4, NOW() - INTERVAL '10 days')
+ON CONFLICT (id) DO UPDATE
+SET price = EXCLUDED.price,
+    category = EXCLUDED.category,
+    name = EXCLUDED.name;
 
 SELECT setval('products_id_seq', (SELECT MAX(id) FROM products));
 

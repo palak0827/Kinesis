@@ -133,14 +133,14 @@ export default function CafeOrders({ navigate }) {
           <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
             {filter === 'ACTIVE'
               ? 'You have no active orders currently being prepared in the kitchen.'
-              : 'You have not placed any orders at the Café & Kitchen yet.'}
+              : 'You have not placed any orders at the Café & Bar yet.'}
           </p>
           <button
             onClick={() => navigate('shop')}
             className="btn btn-primary"
             style={{ padding: '0.65rem 1.5rem', fontWeight: 600 }}
           >
-            Browse Café & Kitchen Menu
+            Browse Café & Bar Menu
           </button>
         </div>
       ) : (
@@ -214,23 +214,30 @@ export default function CafeOrders({ navigate }) {
                   </div>
                 </div>
 
-                {/* Right Info: Total and Details button */}
-                <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
-                  <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--primary)' }}>
-                    ₹{Number(order.total).toFixed(2)}
-                  </div>
-                  {Number(order.discount_amount) > 0 && (
-                    <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
-                      Saved ₹{Number(order.discount_amount).toFixed(2)}
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                      ₹{Number(order.total).toFixed(2)}
                     </div>
-                  )}
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Click for receipt →
-                  </span>
+                    {Number(order.discount_amount) > 0 && (
+                      <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
+                        Saved ₹{Number(order.discount_amount).toFixed(2)}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrder(order);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 600 }}
+                    >
+                      View Bill
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       )}
 
@@ -371,13 +378,22 @@ export default function CafeOrders({ navigate }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button
+                type="button"
                 onClick={() => setSelectedOrder(null)}
                 className="btn btn-secondary"
                 style={{ padding: '0.55rem 1.25rem' }}
               >
-                Close Receipt
+                Close Bill
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn btn-primary"
+                style={{ padding: '0.55rem 1.25rem', fontWeight: 700 }}
+              >
+                Print / Save Bill
               </button>
             </div>
           </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../AuthContext.jsx';
 import { supabase } from '@backend/services/supabaseClient.js';
-import { Check, Shield, Star, Award } from 'lucide-react';
+import { Check, Shield, Star, Award, User, UserCheck, Eye, EyeOff } from 'lucide-react';
+import { MEMBERSHIP_DURATIONS, calculateMembershipPrice } from '../../utils/pricingEngine.js';
 
 export function calculateAge(dobString) {
   if (!dobString) return 0;
@@ -15,9 +16,17 @@ export function calculateAge(dobString) {
   return age;
 }
 
+// Anchored strict email & 10-digit phone regex validation
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(?:com|ac\.in)$/i;
+const PHONE_REGEX = /^\d{10}$/;
+
 export default function Register({ navigate }) {
   const { register } = useAuth();
   
+  // Steps:
+  // 1: Details (Name, Email, Phone, DOB, Password)
+  // 2: Choose Customer Category: [ Become a Member ] or [ Continue as Walk-In ]
+  // 3: Membership Selection (Tier, Duration, Summary)
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -27,12 +36,140 @@ export default function Register({ navigate }) {
     password: '',
     confirm: ''
   });
+
+  // Dedicated validation error tracking per field
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // Independent password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [plans, setPlans] = useState([]);
   const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [selectedDurationMonths, setSelectedDurationMonths] = useState(12); // Default Annual
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingPlans, setFetchingPlans] = useState(false);
+
+  // Field change handlers with live error removal on correction
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, name: val }));
+    if (fieldErrors.name && val.trim()) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.name;
+        return next;
+      });
+    }
+  };
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, email: val }));
+    if (fieldErrors.email && EMAIL_REGEX.test(val.trim())) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setFormData((prev) => ({ ...prev, phone: digitsOnly }));
+    if (fieldErrors.phone && PHONE_REGEX.test(digitsOnly)) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.phone;
+        return next;
+      });
+    }
+  };
+
+  const handleDobChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, dob: val }));
+    if (fieldErrors.dob && val) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.dob;
+        return next;
+      });
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, password: val }));
+    if (fieldErrors.password && val.length >= 6) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    }
+    if (formData.confirm && fieldErrors.confirm && val === formData.confirm) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.confirm;
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, confirm: val }));
+    if (fieldErrors.confirm && val === formData.password) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.confirm;
+        return next;
+      });
+    }
+  };
+
+  // Step 1 Validation Runner
+  const validateStepOne = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Full name is required.';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required.';
+    } else if (!EMAIL_REGEX.test(formData.email.trim())) {
+      newErrors.email = 'Invalid email address. Use a valid .com or .ac.in email.';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required.';
+    } else if (!PHONE_REGEX.test(formData.phone.trim())) {
+      newErrors.phone = 'Phone number must contain exactly 10 digits.';
+    }
+
+    if (!formData.dob) {
+      newErrors.dob = 'Date of birth is required.';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long.';
+    }
+
+    if (!formData.confirm) {
+      newErrors.confirm = 'Please confirm your password.';
+    } else if (formData.password !== formData.confirm) {
+      newErrors.confirm = 'Passwords do not match.';
+    }
+
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   // Fetch membership plans from PostgreSQL table
   useEffect(() => {
@@ -46,6 +183,7 @@ export default function Register({ navigate }) {
             .order('id', { ascending: true });
           if (!error && data && data.length > 0) {
             setPlans(data);
+            setSelectedPlanId(data[0].id);
             return;
           }
         }
@@ -62,25 +200,8 @@ export default function Register({ navigate }) {
     e.preventDefault();
     setError('');
 
-    // Validations
-    if (!formData.name.trim() || !formData.email.trim() || !formData.dob || !formData.password) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    if (formData.password !== formData.confirm) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    // Strict validation check before allowing transition to Step 2
+    if (!validateStepOne()) {
       return;
     }
 
@@ -101,15 +222,42 @@ export default function Register({ navigate }) {
         }
 
         if (existing) {
-          setError('An account with this email already exists.');
+          setFieldErrors((prev) => ({
+            ...prev,
+            email: 'An account with this email already exists.'
+          }));
           setLoading(false);
           return;
         }
       }
 
+      // Proceed to Step 2 (Choose Walk-In vs Member)
       setStep(2);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Continue as Walk-In user (no paid membership)
+  const handleWalkInRegistration = async () => {
+    setError('');
+    setLoading(true);
+
+    try {
+      await register({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        plan_id: null,
+        user_type: 'WALK_IN',
+        password: formData.password
+      });
+
+      navigate('home');
+    } catch (err) {
+      setError(err.message || 'Failed to create Walk-In account.');
     } finally {
       setLoading(false);
     }
@@ -130,7 +278,7 @@ export default function Register({ navigate }) {
     setSelectedPlanId(plan.id);
   };
 
-  const handleCompleteRegistration = async () => {
+  const handleCompleteMemberRegistration = async () => {
     setError('');
 
     if (!selectedPlanId) {
@@ -138,7 +286,7 @@ export default function Register({ navigate }) {
       return;
     }
 
-    const plan = plans.find(p => p.id === selectedPlanId);
+    const plan = plans.find((p) => p.id === selectedPlanId);
     if (plan && plan.name.toLowerCase() === 'junior') {
       const age = calculateAge(formData.dob);
       if (age >= 18) {
@@ -155,10 +303,11 @@ export default function Register({ navigate }) {
         email: formData.email,
         phone: formData.phone,
         plan_id: selectedPlanId,
+        user_type: 'MEMBER',
+        durationMonths: selectedDurationMonths,
         password: formData.password
       });
 
-      // Session is stored in localStorage by register(), redirect to /member
       navigate('home');
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -167,25 +316,28 @@ export default function Register({ navigate }) {
     }
   };
 
+  const selectedPlan = plans.find((p) => p.id === selectedPlanId) || plans[0];
+  const membershipPricing = selectedPlan
+    ? calculateMembershipPrice(selectedPlan.monthly_price, selectedDurationMonths)
+    : null;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-      
       {/* Top Branding */}
       <div style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('landing')}>
         <h2 style={{ margin: 0, letterSpacing: '0.08em', color: 'var(--primary)' }}>KINESIS</h2>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Sports Club</span>
       </div>
 
-      {step === 1 ? (
+      {step === 1 && (
         /* STEP 1: CREATE ACCOUNT DETAILS */
         <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '2.5rem', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)', borderRadius: 'var(--radius-md)' }}>
-          
           <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Step 1 of 2
             </span>
             <h1 style={{ fontSize: '1.8rem', margin: '0.4rem 0 0.5rem 0', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              CREATE YOUR KINESIS ACCOUNT
+              CREATE YOUR ACCOUNT
             </h1>
             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
               Enter your personal details to begin registration
@@ -193,20 +345,12 @@ export default function Register({ navigate }) {
           </div>
 
           {error && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: '#dc2626',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              padding: '0.85rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              marginBottom: '1.5rem',
-              fontSize: '0.9rem'
-            }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleStep1Submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          <form noValidate onSubmit={handleStep1Submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
                 Full Name *
@@ -215,11 +359,19 @@ export default function Register({ navigate }) {
                 type="text"
                 placeholder="e.g. Jordan Miller"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
+                onChange={handleNameChange}
                 className="form-input"
-                style={{ width: '100%', boxSizing: 'border-box' }}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  borderColor: fieldErrors.name ? '#dc2626' : undefined
+                }}
               />
+              {fieldErrors.name && (
+                <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                  {fieldErrors.name}
+                </span>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
@@ -231,25 +383,44 @@ export default function Register({ navigate }) {
                   type="email"
                   placeholder="name@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
+                  onChange={handleEmailChange}
                   className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    borderColor: fieldErrors.email ? '#dc2626' : undefined
+                  }}
                 />
+                {fieldErrors.email && (
+                  <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                    {fieldErrors.email}
+                  </span>
+                )}
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
-                  Phone
+                  Phone *
                 </label>
                 <input
                   type="tel"
-                  placeholder="+1 (555) 000-0000"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={handlePhoneChange}
                   className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    borderColor: fieldErrors.phone ? '#dc2626' : undefined
+                  }}
                 />
+                {fieldErrors.phone && (
+                  <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                    {fieldErrors.phone}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -260,14 +431,23 @@ export default function Register({ navigate }) {
               <input
                 type="date"
                 value={formData.dob}
-                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                required
+                onChange={handleDobChange}
                 className="form-input"
-                style={{ width: '100%', boxSizing: 'border-box' }}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  borderColor: fieldErrors.dob ? '#dc2626' : undefined
+                }}
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                Used to verify Junior membership eligibility (under 18).
-              </span>
+              {fieldErrors.dob ? (
+                <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                  {fieldErrors.dob}
+                </span>
+              ) : (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                  Used to verify Junior membership eligibility (under 18).
+                </span>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
@@ -275,32 +455,94 @@ export default function Register({ navigate }) {
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
                   Password *
                 </label>
-                <input
-                  type="password"
-                  placeholder="Min. 6 chars"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  minLength={6}
-                  className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Min. 6 chars"
+                    value={formData.password}
+                    onChange={handlePasswordChange}
+                    className="form-input"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      paddingRight: '2.5rem',
+                      borderColor: fieldErrors.password ? '#dc2626' : undefined
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {fieldErrors.password && (
+                  <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                    {fieldErrors.password}
+                  </span>
+                )}
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.35rem', color: 'var(--text-main)' }}>
                   Confirm Password *
                 </label>
-                <input
-                  type="password"
-                  placeholder="Confirm password"
-                  value={formData.confirm}
-                  onChange={(e) => setFormData({ ...formData, confirm: e.target.value })}
-                  required
-                  minLength={6}
-                  className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm password"
+                    value={formData.confirm}
+                    onChange={handleConfirmChange}
+                    className="form-input"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      paddingRight: '2.5rem',
+                      borderColor: fieldErrors.confirm ? '#dc2626' : undefined
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {fieldErrors.confirm && (
+                  <span style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '0.25rem', display: 'block' }}>
+                    {fieldErrors.confirm}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -308,13 +550,7 @@ export default function Register({ navigate }) {
               type="submit"
               disabled={loading}
               className="btn btn-primary"
-              style={{
-                padding: '0.9rem',
-                fontSize: '1rem',
-                fontWeight: 600,
-                marginTop: '1rem',
-                cursor: loading ? 'wait' : 'pointer'
-              }}
+              style={{ padding: '0.9rem', fontSize: '1rem', fontWeight: 600, marginTop: '1rem', cursor: loading ? 'wait' : 'pointer' }}
             >
               {loading ? 'Validating...' : 'Continue'}
             </button>
@@ -330,234 +566,275 @@ export default function Register({ navigate }) {
               Login
             </button>
           </div>
-
         </div>
-      ) : (
-        /* STEP 2: CHOOSE YOUR MEMBERSHIP */
-        <div style={{ maxWidth: '960px', width: '100%' }}>
-          
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+      )}
+
+      {step === 2 && (
+        /* STEP 2: CATEGORY CHOICE - BECOME A MEMBER VS CONTINUE AS WALK-IN */
+        <div className="card" style={{ maxWidth: '640px', width: '100%', padding: '2.5rem', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.08)', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Step 2 of 2
             </span>
-            <h1 style={{ fontSize: '2.4rem', margin: '0.4rem 0 0.5rem 0', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              CHOOSE YOUR MEMBERSHIP
+            <h1 style={{ fontSize: '1.8rem', margin: '0.4rem 0 0.5rem 0', color: 'var(--text-main)' }}>
+              HOW WOULD YOU LIKE TO JOIN?
             </h1>
-            <p style={{ margin: 0, fontSize: '1rem', color: 'var(--text-muted)' }}>
-              Select the plan that matches your play style. Benefits and discounts are dynamically configured.
+            <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-muted)' }}>
+              Choose whether you want full club privileges or flexible pay-as-you-go access.
             </p>
           </div>
 
           {error && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: '#dc2626',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              padding: '1rem 1.25rem',
-              borderRadius: 'var(--radius-sm)',
-              marginBottom: '2rem',
-              maxWidth: '600px',
-              margin: '0 auto 2rem auto',
-              textAlign: 'center',
-              fontWeight: 500
-            }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
               {error}
             </div>
           )}
 
-          {fetchingPlans ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading plans from database...</div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1.5rem',
-              marginBottom: '2.5rem'
-            }}>
-              {plans.map((plan) => {
-                const isSelected = selectedPlanId === plan.id;
-                const isGold = plan.name.toLowerCase() === 'gold';
-                const isJunior = plan.name.toLowerCase() === 'junior';
-
-                return (
-                  <div
-                    key={plan.id}
-                    onClick={() => handlePlanSelect(plan)}
-                    className="card"
-                    style={{
-                      cursor: 'pointer',
-                      position: 'relative',
-                      border: isSelected
-                        ? '2px solid var(--primary)'
-                        : '1px solid var(--border-subtle)',
-                      boxShadow: isSelected
-                        ? '0 10px 30px rgba(6, 78, 59, 0.15)'
-                        : '0 4px 15px rgba(0, 0, 0, 0.04)',
-                      transform: isSelected ? 'scale(1.02)' : 'none',
-                      transition: 'all 0.25s ease',
-                      padding: '2rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      background: 'var(--bg-surface)'
-                    }}
-                  >
-                    {isGold && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '-12px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'var(--accent-gold, #f59e0b)',
-                        color: '#000',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '3px 12px',
-                        borderRadius: '20px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em'
-                      }}>
-                        Most Popular
-                      </div>
-                    )}
-
-                    {isJunior && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '-12px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: '#3b82f6',
-                        color: '#fff',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '3px 12px',
-                        borderRadius: '20px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em'
-                      }}>
-                        Under 18 Only
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {plan.name}
-                      </h3>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        border: isSelected ? '2px solid var(--primary)' : '2px solid var(--border-subtle)',
-                        background: isSelected ? 'var(--primary)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white'
-                      }}>
-                        {isSelected && <Check size={14} />}
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      <span style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        ₹{plan.monthly_price}
-                      </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}> / month</span>
-                    </div>
-
-                    <div style={{
-                      fontSize: '0.85rem',
-                      color: 'var(--text-muted)',
-                      marginBottom: '1.5rem',
-                      paddingBottom: '1rem',
-                      borderBottom: '1px solid var(--border-subtle)'
-                    }}>
-                      {isGold && 'Full premium club privileges with top priority.'}
-                      {plan.name.toLowerCase() === 'silver' && 'Standard access with balanced club privileges.'}
-                      {isJunior && 'Dedicated youth membership for athletes under 18.'}
-                    </div>
-
-                    {/* Dynamic Database Benefits */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, marginBottom: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                        <Check size={16} color="var(--primary)" />
-                        <span><strong>{plan.court_discount}%</strong> Court Discount</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                        <Check size={16} color="var(--primary)" />
-                        <span><strong>{plan.shop_discount}%</strong> Pro Shop Discount</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                        <Check size={16} color="var(--primary)" />
-                        <span><strong>{plan.bar_discount}%</strong> Clubhouse Bar Discount</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                        <Check size={16} color="var(--primary)" />
-                        <span><strong>{plan.daily_booking_limit}</strong> Booking/day Limit</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handlePlanSelect(plan); }}
-                      style={{
-                        padding: '0.75rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: isSelected ? 'none' : '1px solid var(--border-subtle)',
-                        background: isSelected ? 'var(--primary)' : 'transparent',
-                        color: isSelected ? 'white' : 'var(--text-main)',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {isSelected ? 'Selected' : 'Select ' + plan.name}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '600px', margin: '0 auto' }}>
-            <button
-              type="button"
-              onClick={() => { setStep(1); setError(''); }}
-              className="btn btn-secondary"
-              style={{ padding: '0.85rem 1.5rem' }}
-            >
-              &larr; Back to Details
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCompleteRegistration}
-              disabled={loading || !selectedPlanId}
-              className="btn btn-primary"
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            {/* Choice 1: Member */}
+            <div
               style={{
-                padding: '0.85rem 2rem',
-                fontSize: '1rem',
-                fontWeight: 600,
-                cursor: (loading || !selectedPlanId) ? 'not-allowed' : 'pointer',
-                opacity: (!selectedPlanId) ? 0.6 : 1
+                border: '2px solid var(--primary)',
+                background: 'rgba(6, 78, 59, 0.04)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
               }}
             >
-              {loading ? 'Creating Member Account...' : 'Complete Registration'}
-            </button>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <Award size={20} color="var(--primary)" />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--primary)' }}>Become a Member</h3>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                  Full privileges: up to 50% court discounts, gear discounts, café discounts, and higher daily booking quotas.
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.82rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <li>Up to 50% off court reservations</li>
+                  <li>Gear Shop & Café member discounts</li>
+                  <li>Higher daily booking limits (up to 3/day)</li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '1.5rem', padding: '0.75rem', fontWeight: 700 }}
+              >
+                Select Membership Tier
+              </button>
+            </div>
+
+            {/* Choice 2: Walk-In */}
+            <div
+              style={{
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-main)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <User size={20} color="var(--text-muted)" />
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Continue as Walk-In</h3>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                  Pay-as-you-go access. Book courts at public rates and enjoy the club without recurring membership fees.
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <li>Standard public court rates</li>
+                  <li>Max 1 court booking per day</li>
+                  <li>Full access to Gear Shop & Café</li>
+                </ul>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleWalkInRegistration}
+                disabled={loading}
+                className="btn btn-secondary"
+                style={{ width: '100%', marginTop: '1.5rem', padding: '0.75rem', fontWeight: 600 }}
+              >
+                {loading ? 'Creating Account...' : 'Continue as Walk-In'}
+              </button>
+            </div>
           </div>
 
+          <div style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              ← Back to Details
+            </button>
+          </div>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => navigate('landing')}
-        style={{ marginTop: '2rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem' }}
-      >
-        &larr; Back to Kinesis Sports Club
-      </button>
+      {step === 3 && (
+        /* STEP 3: MEMBERSHIP TIER & DURATION OPTIONS */
+        <div style={{ maxWidth: '960px', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Tier & Duration
+            </span>
+            <h1 style={{ fontSize: '2.2rem', margin: '0.3rem 0 0.4rem 0', color: 'var(--text-main)' }}>
+              SELECT YOUR MEMBERSHIP PLAN
+            </h1>
+            <p style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+              Choose your membership tier and duration. Save up to 15% with annual subscription.
+            </p>
+          </div>
 
+          {error && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
+
+          {/* Tier Selection */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+            {plans.map((plan) => {
+              const isSelected = selectedPlanId === plan.id;
+              const isGold = plan.name.toLowerCase() === 'gold';
+              const isJunior = plan.name.toLowerCase() === 'junior';
+
+              return (
+                <div
+                  key={plan.id}
+                  onClick={() => handlePlanSelect(plan)}
+                  className="card"
+                  style={{
+                    cursor: 'pointer',
+                    position: 'relative',
+                    border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                    padding: '1.75rem',
+                    background: 'var(--bg-surface)'
+                  }}
+                >
+                  {isGold && (
+                    <div style={{ position: 'absolute', top: '-11px', right: '1rem', background: '#f59e0b', color: '#000', fontSize: '0.7rem', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                      Premium Tier
+                    </div>
+                  )}
+                  {isJunior && (
+                    <div style={{ position: 'absolute', top: '-11px', right: '1rem', background: '#3b82f6', color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                      Under 18
+                    </div>
+                  )}
+
+                  <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem' }}>{plan.name}</h3>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1rem', fontFamily: 'var(--font-mono)' }}>
+                    ₹{Number(plan.monthly_price).toFixed(0)} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ month</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-main)', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                    <div>🎾 Court Discount: <strong>{plan.court_discount}% OFF</strong></div>
+                    <div>🛍️ Gear Shop Discount: <strong>{plan.shop_discount}% OFF</strong></div>
+                    <div>☕ Café & Bar Discount: <strong>{plan.bar_discount}% OFF</strong></div>
+                    <div>📅 Daily Booking Limit: <strong>{plan.daily_booking_limit} slots/day</strong></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Duration Selector */}
+          <div className="card" style={{ padding: '1.75rem', marginBottom: '2rem' }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Choose Subscription Duration</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              {MEMBERSHIP_DURATIONS.map((dur) => {
+                const selected = selectedDurationMonths === dur.months;
+                return (
+                  <button
+                    key={dur.id}
+                    type="button"
+                    onClick={() => setSelectedDurationMonths(dur.months)}
+                    style={{
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: selected ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                      background: selected ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-main)',
+                      textAlign: 'left',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span style={{ fontWeight: 700, color: selected ? 'var(--primary)' : 'var(--text-main)' }}>{dur.label}</span>
+                      <span style={{ fontSize: '0.72rem', background: selected ? 'var(--primary)' : 'var(--border-subtle)', color: selected ? 'white' : 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                        {dur.tag}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {dur.months} {dur.months === 1 ? 'Month' : 'Months'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Pricing Summary */}
+          {membershipPricing && (
+            <div className="card" style={{ padding: '1.75rem', background: 'var(--bg-surface)', borderLeft: '4px solid var(--primary)', marginBottom: '2rem' }}>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Membership Summary</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                  <span>{selectedPlan?.name} Tier ({membershipPricing.months} Months Base):</span>
+                  <span>₹{membershipPricing.baseAmount.toFixed(2)}</span>
+                </div>
+
+                {membershipPricing.discountPercent > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 600 }}>
+                    <span>Duration Discount ({membershipPricing.discountPercent}% OFF):</span>
+                    <span>-₹{membershipPricing.durationDiscountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                  <span>Membership Validity:</span>
+                  <span>{membershipPricing.startDateStr} to {membershipPricing.expiryDateStr}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.3rem', color: 'var(--primary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                  <span>Final Membership Price:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>₹{membershipPricing.finalPrice.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="btn btn-secondary"
+              style={{ padding: '0.75rem 1.5rem' }}
+            >
+              ← Back
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCompleteMemberRegistration}
+              disabled={loading}
+              className="btn btn-primary"
+              style={{ padding: '0.85rem 2rem', fontSize: '1rem', fontWeight: 700 }}
+            >
+              {loading ? 'Finalizing Membership...' : `Activate ${selectedPlan?.name} Membership`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -142,3 +142,48 @@ h1, h2, h3, h4, h5 {
   margin: 0 auto;
   padding: 40px 20px;
 }
+
+/* Print stylesheets for e-tickets and receipts */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print,
+  button:not(.allow-print),
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  .print-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+  }
+
+  .print-area {
+    box-shadow: none !important;
+    border: 1px solid #111 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1.5rem !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .print-area * {
+    color: #000000 !important;
+  }
+
+  .print-report-container {
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 20px !important;
+  }
+}
+

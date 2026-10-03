@@ -1,5 +1,6 @@
 import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 import { getMemberById } from './memberService.js';
+import { createNotification } from './notificationService.js';
 
 /**
  * Fetch products with optional category and search filtering
@@ -125,6 +126,10 @@ export async function updateProduct(id, productData) {
   };
   localStore.saveProducts();
 
+  if (updates.stock_quantity !== undefined) {
+    dispatchStockNotifications(localStore.products[index], Number(updates.stock_quantity));
+  }
+
   return localStore.products[index];
 }
 
@@ -189,13 +194,7 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
 
   if (shouldUseSupabase()) {
     try {
-      // Update stock
-      await supabase
-        .from('products')
-        .update({ stock_quantity: newStock })
-        .eq('id', pId);
-
-      // Insert sale
+      // Insert sale (Postgres trigger trg_sale_stock_reduction automatically deducts stock)
       const { data, error } = await supabase
         .from('sales')
         .insert([saleRecord])
@@ -205,12 +204,23 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
           members (id, name, email)
         `)
         .single();
-      if (!error && data) return data;
+
+      if (!error && data) {
+        const pIndex = localStore.products.findIndex((p) => p.id === pId);
+        if (pIndex !== -1) {
+          localStore.products[pIndex].stock_quantity = newStock;
+        }
+        dispatchSaleNotifications(data, product, qty, total, mId);
+        dispatchStockNotifications(product, newStock);
+        return data;
+      }
       if (error) throw error;
     } catch (err) {
       console.warn('Supabase recordSale error, fallback to local:', err);
     }
   }
+
+
 
   // Local fallback: update product stock
   const pIndex = localStore.products.findIndex((p) => p.id === pId);
@@ -231,6 +241,10 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
   localStore.sales.unshift(createdSale);
   localStore.saveSales();
 
+  // Dispatch sale and stock notifications
+  dispatchSaleNotifications(createdSale, product, qty, total, mId);
+  dispatchStockNotifications(product, newStock);
+
   return createdSale;
 }
 
@@ -245,7 +259,7 @@ export async function getSalesHistory(limit = 50) {
         .select(`
           *,
           products (id, name, category, price),
-          members (id, name, email, plan_id)
+          members (id, club_id, name, email, plan_id)
         `)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -271,3 +285,93 @@ export async function getSalesHistory(limit = 50) {
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, limit);
 }
+
+/**
+ * Dispatch inventory stock alerts
+ */
+async function dispatchStockNotifications(product, newStock) {
+  try {
+    const isOutOfStock = newStock <= 0;
+    const isLowStock = newStock <= Number(product.low_stock_threshold);
+    const category = (product.category || '').toLowerCase();
+    const isFoodOrBeverage = category.includes('café') || category.includes('bar') || category.includes('drink') || category.includes('food');
+    const targetRole = isFoodOrBeverage ? 'RESTAURANT_MANAGER' : 'SHOP_MANAGER';
+
+    if (isOutOfStock) {
+      await createNotification({
+        recipientType: 'ROLE',
+        role: targetRole,
+        title: 'Out of Stock Alert',
+        message: `Item "${product.name}" is now OUT OF STOCK (0 remaining). Restock needed.`,
+        type: 'INVENTORY',
+        referenceId: product.id,
+        referenceType: 'PRODUCT'
+      });
+
+      await createNotification({
+        recipientType: 'ROLE',
+        role: 'ADMIN',
+        title: 'Out of Stock Alert',
+        message: `Item "${product.name}" is now OUT OF STOCK.`,
+        type: 'INVENTORY',
+        referenceId: product.id,
+        referenceType: 'PRODUCT'
+      });
+    } else if (isLowStock) {
+      await createNotification({
+        recipientType: 'ROLE',
+        role: targetRole,
+        title: 'Low Stock Warning',
+        message: `Item "${product.name}" has only ${newStock} units left (threshold: ${product.low_stock_threshold}).`,
+        type: 'INVENTORY',
+        referenceId: product.id,
+        referenceType: 'PRODUCT'
+      });
+
+      await createNotification({
+        recipientType: 'ROLE',
+        role: 'ADMIN',
+        title: 'Low Stock Warning',
+        message: `Item "${product.name}" is low on stock (${newStock} remaining).`,
+        type: 'INVENTORY',
+        referenceId: product.id,
+        referenceType: 'PRODUCT'
+      });
+    }
+  } catch (e) {
+    console.warn('Non-blocking inventory notification error:', e);
+  }
+}
+
+/**
+ * Dispatch sales notifications
+ */
+async function dispatchSaleNotifications(sale, product, qty, total, memberId) {
+  try {
+    if (memberId) {
+      await createNotification({
+        recipientType: 'MEMBER',
+        recipientId: memberId,
+        role: 'MEMBER',
+        title: 'Gear Shop Order Confirmed',
+        message: `Purchased ${qty}x ${product.name} for ₹${total}. Payment successful.`,
+        type: 'ORDER',
+        referenceId: product.id,
+        referenceType: 'PRODUCT_SALE'
+      });
+    }
+
+    await createNotification({
+      recipientType: 'ROLE',
+      role: 'SHOP_MANAGER',
+      title: 'New Gear Shop Sale',
+      message: `Sold ${qty}x ${product.name} (Total: ₹${total}).`,
+      type: 'ORDER',
+      referenceId: product.id,
+      referenceType: 'PRODUCT_SALE'
+    });
+  } catch (e) {
+    console.warn('Non-blocking sale notification error:', e);
+  }
+}
+

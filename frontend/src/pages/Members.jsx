@@ -183,15 +183,34 @@ export default function Members() {
     }
   };
 
-  // Filtered members
+  // Filtered members with Phase 26 criteria
   const filteredMembers = members.filter((m) => {
+    const isWalkIn = m.user_type === 'WALK_IN' || (!m.plan_id && !m.membership_plans);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expDate = m.expiry_date ? new Date(m.expiry_date) : null;
+    if (expDate) expDate.setHours(0, 0, 0, 0);
+    const daysRemaining = expDate ? Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
     const matchesSearch =
       searchTerm === '' ||
       m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.phone?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      matchesStatus = !isWalkIn && m.status === 'active' && (daysRemaining === null || daysRemaining >= 0);
+    } else if (statusFilter === 'expiring') {
+      matchesStatus = !isWalkIn && m.status === 'active' && daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0;
+    } else if (statusFilter === 'expired') {
+      matchesStatus = !isWalkIn && (m.status === 'expired' || (daysRemaining !== null && daysRemaining < 0));
+    } else if (statusFilter === 'walkin') {
+      matchesStatus = isWalkIn;
+    } else if (statusFilter !== 'all') {
+      matchesStatus = m.status === statusFilter;
+    }
+
     const matchesPlan =
       planFilter === 'all' ||
       m.membership_plans?.name?.toLowerCase() === planFilter.toLowerCase() ||
@@ -222,7 +241,7 @@ export default function Members() {
         </button>
       </div>
 
-      {/* Plan Benefits Summary Cards */}
+      {/* Plan Benefits Summary Cards - PHASE 2: DYNAMIC BENEFIT VALUES */}
       <div
         style={{
           display: 'grid',
@@ -231,39 +250,55 @@ export default function Members() {
           marginBottom: '24px'
         }}
       >
-        {plans.map((p) => (
-          <div
-            key={p.id}
-            className="card"
-            style={{
-              padding: '16px 20px',
-              borderLeft: `4px solid ${p.id === 1 ? '#f59e0b' : p.id === 2 ? '#94a3b8' : '#06b6d4'}`
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Award size={18} color={p.id === 1 ? '#f59e0b' : p.id === 2 ? '#94a3b8' : '#06b6d4'} />
-                <span style={{ fontWeight: 800, fontSize: '15px', color: '#fff' }}>{p.name} Tier</span>
+        {plans.map((p) => {
+          const isGold = p.name.toLowerCase() === 'gold';
+          const isSilver = p.name.toLowerCase() === 'silver';
+          const borderColor = isGold ? '#f59e0b' : isSilver ? '#94a3b8' : '#06b6d4';
+
+          return (
+            <div
+              key={p.id}
+              className="card"
+              style={{
+                padding: '20px',
+                borderLeft: `5px solid ${borderColor}`,
+                background: 'var(--bg-surface)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Award size={20} color={borderColor} />
+                  <span style={{ fontWeight: 800, fontSize: '1.2rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {p.name}
+                  </span>
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--primary)', fontSize: '1.3rem' }}>
+                  ₹{Number(p.monthly_price).toLocaleString('en-IN')}
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 400 }}> / month</span>
+                </span>
               </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', fontSize: '14px' }}>
-                ₹{Number(p.monthly_price).toFixed(0)}/mo
-              </span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.88rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Court Discount</span>
+                  <strong style={{ color: 'var(--text-main)' }}>{p.court_discount}% OFF</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Gear Shop Discount</span>
+                  <strong style={{ color: 'var(--text-main)' }}>{p.shop_discount}% OFF</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Café & Bar Discount</span>
+                  <strong style={{ color: 'var(--text-main)' }}>{p.bar_discount}% OFF</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Daily Booking Limit</span>
+                  <strong style={{ color: 'var(--text-main)' }}>{p.daily_booking_limit} / day</strong>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              <div>
-                <strong style={{ color: '#fff' }}>{p.court_discount}%</strong> Court Off
-              </div>
-              <div>•</div>
-              <div>
-                <strong style={{ color: '#fff' }}>{p.shop_discount}%</strong> Shop Off
-              </div>
-              <div>•</div>
-              <div>
-                <strong style={{ color: '#fff' }}>{p.daily_booking_limit}</strong> Max Slots/Day
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Filter and Search Bar */}
@@ -283,19 +318,20 @@ export default function Members() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {/* Status Filter */}
+            {/* Status Filter - Phase 26 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '12.5px', color: 'var(--text-dim)', fontWeight: 600 }}>Status:</span>
+              <span style={{ fontSize: '12.5px', color: 'var(--text-dim)', fontWeight: 600 }}>Filter:</span>
               <select
                 className="form-select"
                 style={{ width: 'auto', padding: '8px 12px', fontSize: '13px' }}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="all">All Statuses</option>
-                <option value="active">Active Only</option>
-                <option value="expired">Expired</option>
-                <option value="inactive">Inactive</option>
+                <option value="all">All Accounts</option>
+                <option value="active">Active Members</option>
+                <option value="expiring">Expiring Soon (7d)</option>
+                <option value="expired">Expired Members</option>
+                <option value="walkin">Walk-In Users</option>
               </select>
             </div>
 
@@ -309,9 +345,9 @@ export default function Members() {
                 onChange={(e) => setPlanFilter(e.target.value)}
               >
                 <option value="all">All Plans</option>
-                <option value="gold">Gold</option>
-                <option value="silver">Silver</option>
-                <option value="junior">Junior</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.name.toLowerCase()}>{p.name}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -324,43 +360,60 @@ export default function Members() {
           <table className="table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Plan Tier</th>
-                <th>Privileges</th>
-                <th>Member Since</th>
-                <th>Valid Until</th>
-                <th>Status</th>
+                <th style={{ width: '60px' }}>ID</th>
+                <th>Club ID</th>
+                <th>Full Name</th>
+                <th>Contact Info</th>
+                <th>Account Type</th>
+                <th>Membership Plan</th>
+                <th>Membership Status</th>
+                <th>Start Date</th>
+                <th>Expiry Date</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
-                    No members found matching the selected filters.
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '36px', color: 'var(--text-dim)' }}>
+                    No member accounts found matching the selected filters.
                   </td>
                 </tr>
               ) : (
                 filteredMembers.map((m) => {
                   const plan = m.membership_plans;
-                  const isExpired = m.status === 'expired';
+                  const isWalkIn = m.user_type === 'WALK_IN' || (!m.plan_id && !m.membership_plans);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const expDate = m.expiry_date ? new Date(m.expiry_date) : null;
+                  if (expDate) expDate.setHours(0, 0, 0, 0);
+                  const daysRemaining = expDate ? Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                  const isExpired = !isWalkIn && (m.status === 'expired' || (daysRemaining !== null && daysRemaining < 0));
+                  const isExpiringSoon = !isWalkIn && !isExpired && daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0;
 
                   return (
                     <tr key={m.id}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '13px' }}>
+                        #{m.id}
+                      </td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+                        {m.club_id || 'N/A'}
+                      </td>
+
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div
                             style={{
-                              width: '36px',
-                              height: '36px',
+                              width: '32px',
+                              height: '32px',
                               borderRadius: '50%',
-                              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                              backgroundColor: isWalkIn ? 'rgba(100, 116, 139, 0.15)' : 'rgba(16, 185, 129, 0.15)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 700,
-                              fontSize: '13px',
-                              color: '#fff',
+                              fontSize: '12px',
+                              color: isWalkIn ? 'var(--text-muted)' : 'var(--primary)',
                               border: '1px solid var(--border-subtle)'
                             }}
                           >
@@ -370,45 +423,91 @@ export default function Members() {
                               .join('')
                               .slice(0, 2)}
                           </div>
-                          <div>
-                            <div style={{ fontWeight: 700, color: '#fff', fontSize: '14px' }}>
-                              {m.name}
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', gap: '10px' }}>
-                              <span>{m.email}</span>
-                              {m.phone && <span>• {m.phone}</span>}
-                            </div>
-                          </div>
+                          <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px' }}>
+                            {m.name}
+                          </span>
                         </div>
-                      </td>
-
-                      <td>
-                        <span className={`badge badge-${plan?.name?.toLowerCase() || 'gold'}`}>
-                          {plan?.name || 'Standard'}
-                        </span>
                       </td>
 
                       <td>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          <span style={{ color: '#10b981', fontWeight: 600 }}>{plan?.court_discount}% off</span> court,{' '}
-                          <span>{plan?.shop_discount}% off</span> shop
+                          <div>{m.email}</div>
+                          {m.phone && <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{m.phone}</div>}
                         </div>
                       </td>
 
-                      <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {m.start_date}
-                      </td>
-
-                      <td style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
-                        <span style={{ color: isExpired ? '#f43f5e' : 'inherit' }}>
-                          {m.expiry_date}
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            background: isWalkIn ? 'rgba(100, 116, 139, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                            color: isWalkIn ? 'var(--text-muted)' : 'var(--primary)',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          {isWalkIn ? 'WALK-IN' : 'MEMBER'}
                         </span>
                       </td>
 
                       <td>
-                        <span className={`badge badge-${m.status}`}>
-                          {m.status}
+                        {isWalkIn ? (
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No Membership</span>
+                        ) : (
+                          <span className={`badge badge-${plan?.name?.toLowerCase() || 'gold'}`}>
+                            {plan?.name || 'Standard'}
+                          </span>
+                        )}
+                      </td>
+
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            background: isWalkIn
+                              ? 'rgba(100, 116, 139, 0.1)'
+                              : isExpired
+                              ? 'rgba(239, 68, 68, 0.15)'
+                              : isExpiringSoon
+                              ? 'rgba(245, 158, 11, 0.15)'
+                              : 'rgba(16, 185, 129, 0.15)',
+                            color: isWalkIn
+                              ? 'var(--text-muted)'
+                              : isExpired
+                              ? '#ef4444'
+                              : isExpiringSoon
+                              ? '#f59e0b'
+                              : '#10b981',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          {isWalkIn
+                            ? 'NO MEMBERSHIP'
+                            : isExpired
+                            ? 'EXPIRED'
+                            : isExpiringSoon
+                            ? `EXPIRING (${daysRemaining}d)`
+                            : 'ACTIVE'}
                         </span>
+                      </td>
+
+                      <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {m.start_date || '—'}
+                      </td>
+
+                      <td style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+                        {isWalkIn ? (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        ) : (
+                          <span style={{ color: isExpired ? '#f43f5e' : isExpiringSoon ? '#f59e0b' : 'inherit' }}>
+                            {m.expiry_date}
+                          </span>
+                        )}
                       </td>
 
                       <td style={{ textAlign: 'right' }}>
@@ -537,7 +636,7 @@ export default function Members() {
                 {activePlanObj.name} Privileges:
               </div>
               <div>• {activePlanObj.court_discount}% discount on all court bookings</div>
-              <div>• {activePlanObj.shop_discount}% discount on Pro Shop equipment & apparel</div>
+              <div>• {activePlanObj.shop_discount}% discount on Gear Shop equipment & apparel</div>
               <div>• Max {activePlanObj.daily_booking_limit} court reservations per day</div>
             </div>
           )}
