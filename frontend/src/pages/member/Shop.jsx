@@ -425,10 +425,10 @@ export default function Shop() {
                   {discountPercent > 0 ? (
                     <div>
                       <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '0.4rem' }}>
-                        ${Number(p.price).toFixed(2)}
+                        ₹{Number(p.price).toFixed(2)}
                       </span>
                       <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--text-main)' }}>
-                        ${finalPrice}
+                        ₹{finalPrice}
                       </span>
                       <span style={{ display: 'block', fontSize: '0.75rem', color: '#10b981', fontWeight: 600, marginTop: '0.15rem' }}>
                         {discountPercent}% member discount applied
@@ -436,7 +436,7 @@ export default function Shop() {
                     </div>
                   ) : (
                     <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--text-main)' }}>
-                      ${Number(p.price).toFixed(2)}
+                      ₹{Number(p.price).toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -526,7 +526,7 @@ export default function Shop() {
                         {isCafe ? '☕ Café Item' : '🛍️ Sports Gear'} • {discountRate}% off
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        ${item.price.toFixed(2)} × {item.quantity} = ${(item.price * item.quantity).toFixed(2)}
+                        ₹{item.price.toFixed(2)} × {item.quantity} = ₹{(item.price * item.quantity).toFixed(2)}
                       </div>
                     </div>
 
@@ -569,19 +569,19 @@ export default function Shop() {
             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Subtotal:</span>
-                <span>${cartSubtotal.toFixed(2)}</span>
+                <span>₹{cartSubtotal.toFixed(2)}</span>
               </div>
 
               {cartDiscountAmount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
                   <span>Tier Discounts:</span>
-                  <span>-${cartDiscountAmount.toFixed(2)}</span>
+                  <span>-₹{cartDiscountAmount.toFixed(2)}</span>
                 </div>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1.2rem', marginTop: '0.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
                 <span>Final Total:</span>
-                <span style={{ color: 'var(--primary)' }}>${cartFinalTotal.toFixed(2)}</span>
+                <span style={{ color: 'var(--primary)' }}>₹{cartFinalTotal.toFixed(2)}</span>
               </div>
             </div>
 

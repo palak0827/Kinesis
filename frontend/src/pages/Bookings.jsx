@@ -384,7 +384,7 @@ export default function Bookings() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                         <span>{court.sport}</span>
-                        <span style={{ color: '#10b981', fontWeight: 600 }}>${court.hourly_rate}/hr</span>
+                        <span style={{ color: '#10b981', fontWeight: 600 }}>₹{court.hourly_rate}/hr</span>
                       </div>
                     </th>
                   ))}
@@ -452,7 +452,7 @@ export default function Bookings() {
                                   <span className={`badge badge-${booking.members?.membership_plans?.name?.toLowerCase() || 'gold'}`} style={{ fontSize: '9px', padding: '1px 5px' }}>
                                     {booking.members?.membership_plans?.name || 'Gold'}
                                   </span>
-                                  <span>• ${Number(booking.price).toFixed(2)}</span>
+                                  <span>• ₹{Number(booking.price).toFixed(2)}</span>
                                 </div>
                               </div>
 
@@ -581,13 +581,13 @@ export default function Bookings() {
                           </span>
                         </td>
                         <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                          ${courtRate.toFixed(2)}
+                          ₹{courtRate.toFixed(2)}
                         </td>
                         <td style={{ fontFamily: 'var(--font-mono)', color: '#06b6d4' }}>
-                          -${discount.toFixed(2)}
+                          -₹{discount.toFixed(2)}
                         </td>
                         <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981' }}>
-                          ${Number(b.price).toFixed(2)}
+                          ₹{Number(b.price).toFixed(2)}
                         </td>
                         <td>
                           <span className={`badge badge-${isCancelled ? 'expired' : 'active'}`}>
@@ -652,7 +652,7 @@ export default function Bookings() {
             >
               {courts.map((c) => (
                 <option key={c.id} value={c.id} disabled={c.status === 'maintenance'}>
-                  {c.name} ({c.sport}) - ${c.hourly_rate}/hr {c.status === 'maintenance' ? '[MAINTENANCE]' : ''}
+                  {c.name} ({c.sport}) - ₹{c.hourly_rate}/hr {c.status === 'maintenance' ? '[MAINTENANCE]' : ''}
                 </option>
               ))}
             </select>
@@ -743,12 +743,12 @@ export default function Bookings() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                 <span>Court Base Rate (1 hr):</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>${priceBreakdown.baseRate.toFixed(2)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>₹{priceBreakdown.baseRate.toFixed(2)}</span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#06b6d4', marginBottom: '8px' }}>
                 <span>{priceBreakdown.planName} Plan Discount ({priceBreakdown.discountPercent}%):</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>-${priceBreakdown.discountAmount.toFixed(2)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>-₹{priceBreakdown.discountAmount.toFixed(2)}</span>
               </div>
 
               <div style={{ height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '8px 0' }} />
@@ -756,7 +756,7 @@ export default function Bookings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
                 <span>Net Total:</span>
                 <span style={{ color: '#10b981', fontFamily: 'var(--font-mono)' }}>
-                  ${priceBreakdown.finalPrice.toFixed(2)}
+                  ₹{priceBreakdown.finalPrice.toFixed(2)}
                 </span>
               </div>
             </div>

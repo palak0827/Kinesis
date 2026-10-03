@@ -339,7 +339,7 @@ export default function Inventory() {
                           </td>
 
                           <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#fff' }}>
-                            ${Number(p.price).toFixed(2)}
+                            ₹{Number(p.price).toFixed(2)}
                           </td>
 
                           <td>
@@ -452,9 +452,9 @@ export default function Inventory() {
                         )}
                       </td>
                       <td style={{ fontFamily: 'var(--font-mono)' }}>{s.quantity}x</td>
-                      <td style={{ fontFamily: 'var(--font-mono)' }}>${Number(s.unit_price).toFixed(2)}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)' }}>₹{Number(s.unit_price).toFixed(2)}</td>
                       <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#10b981' }}>
-                        ${Number(s.total).toFixed(2)}
+                        ₹{Number(s.total).toFixed(2)}
                       </td>
                       <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                         {new Date(s.created_at).toLocaleDateString('en-US', {
@@ -511,7 +511,7 @@ export default function Inventory() {
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id} disabled={Number(p.stock_quantity) <= 0}>
-                  {p.name} - ${p.price} ({p.stock_quantity} in stock) {Number(p.stock_quantity) <= 0 ? '[OUT OF STOCK]' : ''}
+                  {p.name} - ₹{p.price} ({p.stock_quantity} in stock) {Number(p.stock_quantity) <= 0 ? '[OUT OF STOCK]' : ''}
                 </option>
               ))}
             </select>
@@ -571,13 +571,13 @@ export default function Inventory() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                 <span>Item: {selectedProductObj.name}</span>
-                <span style={{ fontFamily: 'var(--font-mono)' }}>${baseUnitPrice.toFixed(2)} ea</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>₹{baseUnitPrice.toFixed(2)} ea</span>
               </div>
 
               {discountPct > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#06b6d4', marginBottom: '6px' }}>
                   <span>{selectedMemberObj?.membership_plans?.name} Discount ({discountPct}%):</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>-${(discountPerUnit * saleForm.quantity).toFixed(2)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>-₹{(discountPerUnit * saleForm.quantity).toFixed(2)}</span>
                 </div>
               )}
 
@@ -591,7 +591,7 @@ export default function Inventory() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
                 <span>Total Due:</span>
                 <span style={{ color: '#10b981', fontFamily: 'var(--font-mono)' }}>
-                  ${totalAmount.toFixed(2)}
+                  ₹{totalAmount.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -666,7 +666,7 @@ export default function Inventory() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Retail Price ($ USD) *</label>
+            <label className="form-label">Retail Price (₹ INR) *</label>
             <input
               type="number"
               step="0.01"

@@ -145,7 +145,7 @@ export default function Kitchen() {
                 <strong>{item.quantity}×</strong> {item.products?.name || `Product #${item.product_id}`}
               </span>
               <span style={{ color: 'var(--text-muted)' }}>
-                ${Number(item.total).toFixed(2)}
+                ₹{Number(item.total).toFixed(2)}
               </span>
             </div>
           ))}
@@ -154,10 +154,10 @@ export default function Kitchen() {
         {/* Financial Summary */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '0.9rem', paddingTop: '0.25rem' }}>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            {Number(order.discount_amount) > 0 && `(Disc: -$${Number(order.discount_amount).toFixed(2)})`}
+            {Number(order.discount_amount) > 0 && `(Disc: -₹${Number(order.discount_amount).toFixed(2)})`}
           </span>
           <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--primary)' }}>
-            Total: ${Number(order.total).toFixed(2)}
+            Total: ₹{Number(order.total).toFixed(2)}
           </span>
         </div>
 
@@ -315,7 +315,7 @@ export default function Kitchen() {
 
         <div className="card" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary)' }}>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Sports Shop Sales</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0.35rem 0', color: 'var(--primary)' }}>${totalSportsRevenue.toFixed(2)}</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '0.35rem 0', color: 'var(--primary)' }}>₹{totalSportsRevenue.toFixed(2)}</div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{sportsSales.length} retail merchandise orders</div>
         </div>
 
@@ -490,9 +490,9 @@ export default function Kitchen() {
                         </span>
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700 }}>{s.quantity}×</td>
-                      <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)' }}>${Number(s.unit_price).toFixed(2)}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)' }}>₹{Number(s.unit_price).toFixed(2)}</td>
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 700, color: 'var(--primary)' }}>
-                        ${Number(s.total).toFixed(2)}
+                        ₹{Number(s.total).toFixed(2)}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
                         <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 700 }}>

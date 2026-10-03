@@ -222,7 +222,7 @@ export default function Dashboard({ setActiveTab, onQuickAction }) {
 
         <StatCard
           title="Pro Shop Revenue"
-          value={`$${stats.totalSalesRevenue.toLocaleString()}`}
+          value={`₹${stats.totalSalesRevenue.toLocaleString()}`}
           subtext="Discounts auto-applied by plan"
           icon={ShoppingBag}
           color="#f59e0b"
@@ -246,7 +246,7 @@ export default function Dashboard({ setActiveTab, onQuickAction }) {
             <div>
               <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Weekly Activity & Revenue Stream</h3>
               <p style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                Comparing court booking revenue vs. pro shop merchandise sales ($)
+                Comparing court booking revenue vs. pro shop merchandise sales (₹)
               </p>
             </div>
             <div style={{ display: 'flex', gap: '14px', fontSize: '12px' }}>
@@ -416,7 +416,7 @@ export default function Dashboard({ setActiveTab, onQuickAction }) {
                       </span>
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#10b981' }}>
-                      ${Number(b.price).toFixed(2)}
+                      ₹{Number(b.price).toFixed(2)}
                     </td>
                     <td>
                       <span className="badge badge-active">

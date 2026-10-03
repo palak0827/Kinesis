@@ -44,7 +44,7 @@ export default function AdminInventory() {
                   <tr key={p.id} style={{ borderBottom: i < products.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
                     <td style={{ padding: '1.25rem 1rem', fontWeight: 500 }}>{p.name}</td>
                     <td style={{ padding: '1.25rem 1rem', color: 'var(--text-muted)' }}>{p.category}</td>
-                    <td style={{ padding: '1.25rem 1rem' }}>${p.price}</td>
+                    <td style={{ padding: '1.25rem 1rem' }}>₹{p.price}</td>
                     <td style={{ padding: '1.25rem 1rem', textAlign: 'right', fontWeight: 600 }}>{p.stock_quantity}</td>
                     <td style={{ padding: '1.25rem 1rem' }}>
                       <span style={{ 

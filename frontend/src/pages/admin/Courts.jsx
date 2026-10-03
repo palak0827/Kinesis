@@ -53,7 +53,7 @@ export default function AdminCourts() {
                 <tr key={c.id} style={{ borderBottom: i < courts.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
                   <td style={{ padding: '1.25rem 1rem', fontWeight: 500 }}>{c.name}</td>
                   <td style={{ padding: '1.25rem 1rem' }}>{c.sport}</td>
-                  <td style={{ padding: '1.25rem 1rem' }}>${c.hourly_rate}</td>
+                  <td style={{ padding: '1.25rem 1rem' }}>₹{c.hourly_rate}</td>
                   <td style={{ padding: '1.25rem 1rem' }}>
                     <span style={{ 
                       fontSize: '0.8rem', padding: '4px 10px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600,

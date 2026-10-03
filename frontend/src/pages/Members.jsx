@@ -246,7 +246,7 @@ export default function Members() {
                 <span style={{ fontWeight: 800, fontSize: '15px', color: '#fff' }}>{p.name} Tier</span>
               </div>
               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10b981', fontSize: '14px' }}>
-                ${Number(p.monthly_price).toFixed(0)}/mo
+                ₹{Number(p.monthly_price).toFixed(0)}/mo
               </span>
             </div>
             <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -515,7 +515,7 @@ export default function Members() {
             >
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} Tier (${p.monthly_price}/month) - {p.court_discount}% court discount
+                  {p.name} Tier (₹{p.monthly_price}/month) - {p.court_discount}% court discount
                 </option>
               ))}
             </select>
@@ -634,7 +634,7 @@ export default function Members() {
             >
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} (${p.monthly_price}/mo)
+                  {p.name} (₹{p.monthly_price}/mo)
                 </option>
               ))}
             </select>

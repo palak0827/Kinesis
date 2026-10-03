@@ -460,7 +460,7 @@ export default function Register({ navigate }) {
 
                     <div style={{ marginBottom: '1.5rem' }}>
                       <span style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        ${plan.monthly_price}
+                        ₹{plan.monthly_price}
                       </span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}> / month</span>
                     </div>

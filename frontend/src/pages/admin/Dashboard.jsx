@@ -152,7 +152,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today's Revenue</p>
-            <h2 style={{ margin: '0.2rem 0 0 0', fontSize: '1.8rem' }}>${stats.revenueToday.toFixed(2)}</h2>
+            <h2 style={{ margin: '0.2rem 0 0 0', fontSize: '1.8rem' }}>₹{stats.revenueToday.toFixed(2)}</h2>
           </div>
         </div>
 

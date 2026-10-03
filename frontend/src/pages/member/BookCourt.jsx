@@ -322,7 +322,7 @@ export default function BookCourt({ navigate }) {
                     <h4 style={{ margin: 0, fontSize: '1.15rem' }}>{c.name}</h4>
 
                     <div style={{ marginTop: '0.5rem', fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      ${Number(c.hourly_rate).toFixed(2)} / hour
+                      ₹{Number(c.hourly_rate).toFixed(2)} / hour
                     </div>
                   </div>
                 );
@@ -350,7 +350,7 @@ export default function BookCourt({ navigate }) {
                 Step 3: Select Date & Available Slot
               </h3>
               <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                {selectedCourt?.name} (${Number(selectedCourt?.hourly_rate).toFixed(2)}/hr)
+                {selectedCourt?.name} (₹{Number(selectedCourt?.hourly_rate).toFixed(2)}/hr)
               </div>
             </div>
             <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.9rem' }}>
@@ -502,7 +502,7 @@ export default function BookCourt({ navigate }) {
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Base Court Fee</span>
-              <strong>${Number(selectedCourt?.hourly_rate || 0).toFixed(2)}</strong>
+              <strong>₹{Number(selectedCourt?.hourly_rate || 0).toFixed(2)}</strong>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981' }}>
@@ -513,7 +513,7 @@ export default function BookCourt({ navigate }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
               <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>Total Payable</span>
               <strong style={{ fontSize: '1.5rem', color: 'var(--primary)' }}>
-                ${Number(priceInfo?.finalPrice || 0).toFixed(2)}
+                ₹{Number(priceInfo?.finalPrice || 0).toFixed(2)}
               </strong>
             </div>
           </div>

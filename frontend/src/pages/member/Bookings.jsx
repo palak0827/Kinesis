@@ -103,7 +103,7 @@ export default function MemberBookings({ navigate }) {
       </div>
       <div style={{ textAlign: 'right' }}>
         <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-          ${Number(b.price || 0).toFixed(2)}
+          ₹{Number(b.price || 0).toFixed(2)}
         </div>
         {canCancel ? (
           <button

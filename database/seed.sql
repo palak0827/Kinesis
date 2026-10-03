@@ -72,15 +72,15 @@ SELECT setval('products_id_seq', (SELECT MAX(id) FROM products));
 -- 5. Insert Bookings (for Today & Recent)
 INSERT INTO bookings (id, member_id, court_id, booking_date, start_time, end_time, price, status, created_at)
 VALUES
-    -- Alex Mercer (Gold - 50% off $40 = $20)
+    -- Alex Mercer (Gold - 50% off ₹40 = ₹20)
     (1, 1, 1, CURRENT_DATE, '09:00:00', '10:00:00', 20.00, 'confirmed', NOW() - INTERVAL '1 day'),
-    -- Elena Rostova (Gold - 50% off $36 = $18)
+    -- Elena Rostova (Gold - 50% off ₹36 = ₹18)
     (2, 2, 2, CURRENT_DATE, '10:00:00', '11:00:00', 18.00, 'confirmed', NOW() - INTERVAL '2 days'),
-    -- Marcus Vance (Silver - 25% off $44 = $33)
+    -- Marcus Vance (Silver - 25% off ₹44 = ₹33)
     (3, 3, 6, CURRENT_DATE, '11:30:00', '12:30:00', 33.00, 'confirmed', NOW() - INTERVAL '1 day'),
-    -- Sophia Lin (Junior - 35% off $24 = $15.60)
+    -- Sophia Lin (Junior - 35% off ₹24 = ₹15.60)
     (4, 4, 5, CURRENT_DATE, '16:00:00', '17:00:00', 15.60, 'confirmed', NOW() - INTERVAL '5 hours'),
-    -- Liam Gallagher (Silver - 25% off $28 = $21)
+    -- Liam Gallagher (Silver - 25% off ₹28 = ₹21)
     (5, 5, 3, CURRENT_DATE, '18:00:00', '19:00:00', 21.00, 'confirmed', NOW() - INTERVAL '3 hours'),
     -- Alex Mercer 2nd booking today (allowed: limit is 2)
     (6, 1, 6, CURRENT_DATE, '19:30:00', '20:30:00', 22.00, 'confirmed', NOW() - INTERVAL '1 hour'),
@@ -95,15 +95,15 @@ SELECT setval('bookings_id_seq', (SELECT MAX(id) FROM bookings));
 -- 6. Insert Sales (with member discount applied)
 INSERT INTO sales (id, product_id, member_id, quantity, unit_price, total, created_at)
 VALUES
-    -- Alex Mercer (Gold - 20% discount on $9.50 = $7.60 each, qty 2 = $15.20)
+    -- Alex Mercer (Gold - 20% discount on ₹9.50 = ₹7.60 each, qty 2 = ₹15.20)
     (1, 3, 1, 2, 7.60, 15.20, NOW() - INTERVAL '2 days'),
-    -- Marcus Vance (Silver - 10% discount on $22.00 = $19.80, qty 1 = $19.80)
+    -- Marcus Vance (Silver - 10% discount on ₹22.00 = ₹19.80, qty 1 = ₹19.80)
     (2, 8, 3, 1, 19.80, 19.80, NOW() - INTERVAL '1 day'),
-    -- Non-member / walk-in guest purchase (0% discount, full price $4.50, qty 3 = $13.50)
+    -- Non-member / walk-in guest purchase (0% discount, full price ₹4.50, qty 3 = ₹13.50)
     (3, 9, NULL, 3, 4.50, 13.50, NOW() - INTERVAL '5 hours'),
-    -- Elena Rostova (Gold - 20% discount on $52.00 = $41.60, qty 1 = $41.60)
+    -- Elena Rostova (Gold - 20% discount on ₹52.00 = ₹41.60, qty 1 = ₹41.60)
     (4, 7, 2, 1, 41.60, 41.60, NOW() - INTERVAL '3 hours'),
-    -- Sophia Lin (Junior - 15% discount on $18.00 = $15.30, qty 1 = $15.30)
+    -- Sophia Lin (Junior - 15% discount on ₹18.00 = ₹15.30, qty 1 = ₹15.30)
     (5, 5, 4, 1, 15.30, 15.30, NOW() - INTERVAL '1 hour')
 ON CONFLICT (id) DO NOTHING;
 

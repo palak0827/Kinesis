@@ -90,10 +90,10 @@ export default function AdminOperations() {
                   <li key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>{s.products?.name}</h4>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.quantity}x @ ${s.unit_price}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.quantity}x @ ₹{s.unit_price}</span>
                     </div>
                     <span style={{ fontWeight: 600, color: '#10b981' }}>
-                      +${s.total}
+                      +₹{s.total}
                     </span>
                   </li>
                 ))}
