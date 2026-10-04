@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@backend/services/supabaseClient.js';
 import { getPublicClubStats } from '../../services/clubPlatformService.js';
 import { getProductImage } from '../../utils/productImages.js';
-import { 
-  Trophy, Shield, Award, Users, Calendar, ShoppingBag, 
+import {
+  Trophy, Shield, Award, Users, Calendar, ShoppingBag,
   Coffee, ChevronRight, Menu, X, ArrowRight, CheckCircle2, Clock, MapPin, Phone, Mail
 } from 'lucide-react';
 
@@ -105,7 +105,7 @@ export default function Landing({ navigate }) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column' }}>
-      
+
       {/* ======================================================== */}
       {/* 1. PUBLIC NAVBAR */}
       {/* ======================================================== */}
@@ -127,7 +127,7 @@ export default function Landing({ navigate }) {
           justifyContent: 'space-between'
         }}>
           {/* Logo & Name */}
-          <div 
+          <div
             onClick={() => scrollTo('hero')}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
           >
@@ -146,44 +146,28 @@ export default function Landing({ navigate }) {
             </div>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation Links (Section 5) */}
           <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <button onClick={() => scrollTo('hero')} className="nav-link-btn">Home</button>
-            <button onClick={() => scrollTo('about')} className="nav-link-btn">About Club</button>
-            <button onClick={() => scrollTo('plans')} className="nav-link-btn">Membership Plans</button>
+            <button onClick={() => scrollTo('about')} className="nav-link-btn">Club</button>
             <button onClick={() => scrollTo('facilities')} className="nav-link-btn">Facilities</button>
-            <button onClick={() => scrollTo('achievements')} className="nav-link-btn">Achievements</button>
-            <button onClick={() => scrollTo('shop')} className="nav-link-btn">Gear Shop</button>
+            <button onClick={() => scrollTo('plans')} className="nav-link-btn">Membership</button>
+            <button onClick={() => scrollTo('shop')} className="nav-link-btn">Gear</button>
             <button onClick={() => scrollTo('cafe')} className="nav-link-btn">Café & Bar</button>
           </nav>
 
           {/* Action CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button 
-              onClick={() => navigate('register')} 
-              style={{
-                background: 'rgba(217, 119, 6, 0.1)',
-                color: '#b45309',
-                border: '1px solid rgba(217, 119, 6, 0.3)',
-                padding: '0.55rem 1rem',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+            <button
+              onClick={() => navigate('login')}
+              className="btn btn-primary btn-sm"
+              style={{ fontWeight: 700 }}
             >
-              Walk-in Pass
+              Login
             </button>
-            <button 
-              onClick={() => navigate('login')} 
-              className="btn btn-primary"
-              style={{ padding: '0.55rem 1.25rem', fontSize: '0.88rem', fontWeight: 600 }}
-            >
-              Login Portal
-            </button>
-            
+
             {/* Mobile Hamburger Button */}
-            <button 
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="mobile-menu-toggle"
               style={{
@@ -211,11 +195,10 @@ export default function Landing({ navigate }) {
             gap: '0.75rem'
           }}>
             <button onClick={() => scrollTo('hero')} className="mobile-nav-item">Home</button>
-            <button onClick={() => scrollTo('about')} className="mobile-nav-item">About Club</button>
-            <button onClick={() => scrollTo('plans')} className="mobile-nav-item">Membership Plans</button>
+            <button onClick={() => scrollTo('about')} className="mobile-nav-item">Club</button>
             <button onClick={() => scrollTo('facilities')} className="mobile-nav-item">Facilities</button>
-            <button onClick={() => scrollTo('achievements')} className="mobile-nav-item">Achievements</button>
-            <button onClick={() => scrollTo('shop')} className="mobile-nav-item">Gear Shop</button>
+            <button onClick={() => scrollTo('plans')} className="mobile-nav-item">Membership</button>
+            <button onClick={() => scrollTo('shop')} className="mobile-nav-item">Gear</button>
             <button onClick={() => scrollTo('cafe')} className="mobile-nav-item">Café & Bar</button>
             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
               <button onClick={() => navigate('login')} className="btn btn-primary" style={{ flex: 1 }}>Login</button>
@@ -263,7 +246,7 @@ export default function Landing({ navigate }) {
             }}>
               Train. Compete.<br />
               <span style={{
-                background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)',
+                background: 'linear-gradient(135deg, var(--primary) 0%, #c5a869 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
@@ -277,24 +260,32 @@ export default function Landing({ navigate }) {
               margin: '0 0 2rem 0',
               maxWidth: '560px'
             }}>
-              Kinesis Sports Club brings together championship-standard courts, master athletic training, 
+              Kinesis Sports Club brings together championship-standard courts, master athletic training,
               curated sports equipment, artisan dining, and an exclusive member community under one unified roof.
             </p>
 
+            {/* Clear CTAs: Explore Memberships | Explore Facilities | Login (Section 4) */}
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button 
+              <button
                 onClick={() => scrollTo('plans')}
-                className="btn btn-primary"
-                style={{ padding: '0.9rem 2rem', fontSize: '1.02rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                className="btn btn-primary btn-lg"
+                style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
                 Explore Memberships <ArrowRight size={18} />
               </button>
-              <button 
-                onClick={() => navigate('register')}
-                className="btn btn-secondary"
-                style={{ padding: '0.9rem 1.75rem', fontSize: '1.02rem', fontWeight: 600 }}
+              <button
+                onClick={() => scrollTo('facilities')}
+                className="btn btn-secondary btn-lg"
+                style={{ fontWeight: 600 }}
               >
-                Book as Walk-in
+                Explore Facilities
+              </button>
+              <button
+                onClick={() => navigate('login')}
+                className="btn btn-secondary btn-lg"
+                style={{ fontWeight: 600 }}
+              >
+                Login
               </button>
             </div>
 
@@ -575,8 +566,8 @@ export default function Landing({ navigate }) {
             {plans.map((p) => {
               const isGold = (p.name || '').toLowerCase() === 'gold';
               return (
-                <div 
-                  key={p.id} 
+                <div
+                  key={p.id}
                   className="card"
                   style={{
                     padding: '2.5rem 2rem',
@@ -726,9 +717,9 @@ export default function Landing({ navigate }) {
                       ₹{Number(p.price).toFixed(2)}
                     </span>
                   </div>
-                  <button 
-                    onClick={() => navigate('login')} 
-                    className="btn btn-secondary" 
+                  <button
+                    onClick={() => navigate('login')}
+                    className="btn btn-secondary"
                     style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem' }}
                   >
                     Buy via Portal
@@ -797,9 +788,9 @@ export default function Landing({ navigate }) {
                         ₹{Number(p.price).toFixed(2)}
                       </span>
                     </div>
-                    <button 
-                      onClick={() => navigate('login')} 
-                      className="btn btn-secondary" 
+                    <button
+                      onClick={() => navigate('login')}
+                      className="btn btn-secondary"
                       style={{ padding: '0.45rem 0.85rem', fontSize: '0.82rem' }}
                     >
                       Order via Portal
@@ -850,7 +841,7 @@ export default function Landing({ navigate }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.88rem' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                 <MapPin size={16} color="#d4af37" style={{ marginTop: '3px' }} />
-                <span>Kinesis Sports Complex, Boulevard 7, Sports City</span>
+                <span>LD College</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Phone size={16} color="#d4af37" />

@@ -614,6 +614,17 @@ export async function createBooking(params = {}) {
     }
   }
 
+  const localConflict = localStore.bookings.some((booking) =>
+    Number(booking.court_id) === cId &&
+    booking.booking_date === bookingDate &&
+    booking.status !== 'cancelled' &&
+    timeToMinutes(booking.start_time) < endMins &&
+    timeToMinutes(booking.end_time) > startMins
+  );
+  if (localConflict) {
+    throw new Error('This time slot was just booked by another customer. Please choose another slot.');
+  }
+
   const maxId = localStore.bookings.reduce((max, b) => Math.max(max, b.id), 0);
   const created = {
     id: maxId + 1,
@@ -846,4 +857,3 @@ export async function confirmCashBookingPayment(bookingId) {
     payment_status: 'PAID'
   };
 }
-

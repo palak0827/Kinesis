@@ -241,7 +241,7 @@ async function runPhase62TestSuite() {
 
   // 17, 18, 19. Cash creates booking with payment_method=CASH, payment_status=PENDING
   await testAsync('Test 17-19: CASH booking creates with status=confirmed, payment_method=CASH, payment_status=PENDING', async () => {
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (30 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (800 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
 
     const booking = await createBooking({
       memberId: 1,
@@ -313,7 +313,7 @@ async function runPhase62TestSuite() {
 
   // 23. Card -> PAID
   await testAsync('Test 23: CARD payment flow creates booking with payment_status = PAID', async () => {
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (40 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (1200 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
 
     const cardBooking = await createBooking({
       memberId: 1,
@@ -332,7 +332,7 @@ async function runPhase62TestSuite() {
 
   // 24. UPI -> PAID
   await testAsync('Test 24: UPI payment flow creates booking with payment_status = PAID', async () => {
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (50 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (1600 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
 
     const upiBooking = await createBooking({
       memberId: 1,
@@ -381,7 +381,7 @@ async function runPhase62TestSuite() {
 
   // 26. rapid double click creates one booking only
   await testAsync('Test 26: Rapid double submission produces exactly one booking', async () => {
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (60 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (2000 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
 
     let bookingCount = 0;
     let collisionCount = 0;
@@ -419,7 +419,7 @@ async function runPhase62TestSuite() {
     const calculated = await calculateBookingPrice(1, 1, 60); // Court 1 (rate 200/30m), Alex Mercer (Gold 50% discount) -> 400 - 50% = 200
     const finalAmount = calculated.finalPrice;
 
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (70 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (2400 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
     const booking = await createBooking({
       memberId: 1,
       courtId: 1,
@@ -446,7 +446,7 @@ async function runPhase62TestSuite() {
 
   // 28. unavailable court cannot be purchased even after payment form completion
   await testAsync('Test 28: Overlapping/booked slot is rejected before transaction execution', async () => {
-    const uniqueFutureDate = new Date(Date.now() + 86400000 * (80 + (Date.now() % 300))).toISOString().split('T')[0];
+    const uniqueFutureDate = new Date(Date.now() + 86400000 * (2800 + Math.floor(Math.random() * 400))).toISOString().split('T')[0];
 
     // First booking occupies 18:00 - 19:00
     await createBooking({

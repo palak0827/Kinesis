@@ -268,26 +268,28 @@ export default function Shop() {
       const cat = (p.category || '').toLowerCase();
       const nm = (p.name || '').toLowerCase();
 
-      if (cafeCategory === 'drinks') {
-        return cat.includes('drink') || cat.includes('café') || cat.includes('cafe') ||
-          nm.includes('water') || nm.includes('cooler') || nm.includes('soda') ||
-          nm.includes('tea') || nm.includes('coffee') || nm.includes('brew') ||
-          nm.includes('juice') || nm.includes('shake') || nm.includes('smoothie') ||
-          nm.includes('electrolyte') || nm.includes('espresso') || nm.includes('latte');
+      if (cafeCategory === 'food') {
+        return cat.includes('food') || nm.includes('panini') || nm.includes('wrap') ||
+          nm.includes('pasta') || nm.includes('bowl') || nm.includes('melt');
+      }
+      if (cafeCategory === 'coffee') {
+        return nm.includes('coffee') || nm.includes('brew') || nm.includes('espresso') || nm.includes('latte') || nm.includes('americano') || nm.includes('cappuccino');
       }
       if (cafeCategory === 'mocktails') {
         return cat.includes('mocktail') || nm.includes('mojito') || nm.includes('blue lagoon') ||
           nm.includes('fizz') || nm.includes('punch') || nm.includes('watermelon') ||
           nm.includes('smash') || nm.includes('spark') || nm.includes('lime');
       }
+      if (cafeCategory === 'cold_drinks') {
+        return (cat.includes('drink') || nm.includes('cooler') || nm.includes('water') || nm.includes('soda') || nm.includes('juice') || nm.includes('shake') || nm.includes('smoothie')) && !nm.includes('espresso') && !nm.includes('latte') && !nm.includes('coffee');
+      }
       if (cafeCategory === 'snacks') {
         return cat.includes('snack') || cat.includes('nutrition') ||
           nm.includes('fries') || nm.includes('sandwich') || nm.includes('nachos') ||
           nm.includes('bar') || nm.includes('bites') || nm.includes('cup');
       }
-      if (cafeCategory === 'food') {
-        return cat.includes('food') || nm.includes('panini') || nm.includes('wrap') ||
-          nm.includes('pasta') || nm.includes('bowl') || nm.includes('melt');
+      if (cafeCategory === 'other') {
+        return true;
       }
       return true;
     }
@@ -367,7 +369,7 @@ export default function Shop() {
         </button>
       </div>
 
-      {/* Subcategory Filters */}
+      {/* Subcategory Filters (Section 12 & 13) */}
       {shopSection === 'sports' ? (
         <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {[
@@ -398,10 +400,12 @@ export default function Shop() {
         <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {[
             { id: 'all', label: 'All Menu' },
-            { id: 'drinks', label: '🥤 Drinks & Coffee' },
+            { id: 'food', label: '🥪 Food' },
+            { id: 'coffee', label: '☕ Coffee' },
             { id: 'mocktails', label: '🍸 Mocktails' },
+            { id: 'cold_drinks', label: '🥤 Cold Drinks' },
             { id: 'snacks', label: '🍟 Snacks' },
-            { id: 'food', label: '🥪 Kitchen Food' }
+            { id: 'other', label: '🥗 Other' }
           ].map((cat) => (
             <button
               key={cat.id}
@@ -437,7 +441,7 @@ export default function Shop() {
 
       {/* Content Layout: Product Grid + Order Cart */}
       <div style={{ display: 'grid', gridTemplateColumns: cart.length > 0 ? '1fr 350px' : '1fr', gap: '2rem', alignItems: 'start' }}>
-        {/* Products Grid - PHASE 12: ONLY BASE PRICE, NO DISCOUNT ADVERTISING ON CARDS */}
+        {/* Products Grid - Prioritizing IMAGE -> Name -> Category -> Price -> Stock -> Action */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
           {filteredProducts.map((p) => {
             const isOutOfStock = p.stock_quantity <= 0 || p.availability_status === 'OUT_OF_STOCK';
@@ -458,10 +462,10 @@ export default function Shop() {
                   padding: '1.25rem'
                 }}
               >
-                {/* Product Image Container */}
+                {/* 1. IMAGE: Object-fit contain, consistent dimensions, never stretched */}
                 <div
                   style={{
-                    height: '220px',
+                    height: '200px',
                     width: '100%',
                     overflow: 'hidden',
                     borderRadius: 'var(--radius-sm)',
@@ -488,8 +492,14 @@ export default function Shop() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: isCafe ? '#f59e0b' : 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {/* 2. Product Name */}
+                <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.4rem 0', color: 'var(--text-main)', lineHeight: 1.3 }}>
+                  {p.name}
+                </h3>
+
+                {/* 3. Category & Stock Availability Badges */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: isCafe ? '#b45309' : 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {p.category}
                   </span>
 
@@ -503,21 +513,19 @@ export default function Shop() {
                     </span>
                   ) : (
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {p.stock_quantity} left
+                      {p.stock_quantity} in stock
                     </span>
                   )}
                 </div>
 
-                <h3 style={{ fontSize: '1.05rem', margin: '0 0 0.5rem 0' }}>{p.name}</h3>
-
-                {/* PHASE 12: Base Price only - clean display without premature discounts */}
+                {/* 4. Price: Strong numeric typography */}
                 <div style={{ marginBottom: '1rem' }}>
-                  <span style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ fontWeight: 800, fontSize: '1.3rem', color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
                     ₹{Number(p.price).toFixed(2)}
                   </span>
                 </div>
 
-                {/* Quantity Controls & Add to Cart */}
+                {/* 5. Action: Quantity & Add to Cart */}
                 <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {!cannotBuy && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

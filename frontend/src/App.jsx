@@ -93,33 +93,69 @@ function ThemeToggle() {
   );
 }
 
+const DEPARTMENT_CUES = {
+  RESTAURANT: { icon: '🍽️', label: 'Dining Operations', bg: 'rgba(245, 158, 11, 0.12)', color: '#b45309' },
+  BAR: { icon: '🍸', label: 'Beverage Operations', bg: 'rgba(217, 119, 6, 0.12)', color: '#b45309' },
+  SHOP_MANAGER: { icon: '🛍️', label: 'Retail & Gear', bg: 'rgba(16, 185, 129, 0.12)', color: '#059669' },
+  COURT_MANAGER: { icon: '🎾', label: 'Sports Scheduling', bg: 'rgba(13, 59, 46, 0.08)', color: 'var(--primary)' },
+  STAFF_MANAGER: { icon: '👥', label: 'Workforce & HR', bg: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' },
+  STAFF: { icon: '👥', label: 'Club Workforce', bg: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' },
+  RECEPTIONIST: { icon: '🛎️', label: 'Front Desk Operations', bg: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' },
+  ADMIN: { icon: '⚡', label: 'Executive Control', bg: 'rgba(197, 168, 105, 0.18)', color: '#b45309' },
+  MEMBER: { icon: '🏅', label: 'Athlete Portal', bg: 'rgba(13, 59, 46, 0.08)', color: 'var(--primary)' }
+};
+
 function PortalHeader({ title, user, role, onProfileClick }) {
+  const cue = DEPARTMENT_CUES[role] || DEPARTMENT_CUES.MEMBER;
+
   return (
     <header style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0.85rem 2.5rem',
+      padding: '0.85rem 2rem',
       background: 'var(--bg-surface)',
       borderBottom: '1px solid var(--border-subtle)',
       position: 'sticky',
       top: 0,
       zIndex: 40,
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
+      boxShadow: 'var(--shadow-sm)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <img
           src="/logo2.png"
           alt="Kinesis"
-          style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }}
+          style={{ width: '32px', height: '32px', objectFit: 'contain', flexShrink: 0 }}
         />
-        <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--primary)', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: '0.9rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--primary)', textTransform: 'uppercase' }}>
           KINESIS SPORTS CLUB
         </span>
         <span style={{ color: 'var(--border-subtle)', fontSize: '0.9rem' }}>/</span>
-        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
           {title}
         </span>
+
+        {/* Section 14: Department Visual Cue */}
+        {cue && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.2rem 0.65rem',
+              borderRadius: '999px',
+              background: cue.bg,
+              color: cue.color,
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em'
+            }}
+          >
+            <span>{cue.icon}</span>
+            <span>{cue.label}</span>
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>

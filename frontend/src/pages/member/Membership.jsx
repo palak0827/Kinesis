@@ -9,6 +9,7 @@ import {
 } from '../../utils/pricingEngine.js';
 import UnifiedPaymentModal from '../../components/UnifiedPaymentModal.jsx';
 import ReceiptModal from '../../components/ReceiptModal.jsx';
+import DigitalMembershipCard from '../../components/DigitalMembershipCard.jsx';
 import { Award, Check, Sparkles, AlertCircle, Clock } from 'lucide-react';
 
 export default function Membership() {
@@ -155,81 +156,9 @@ export default function Membership() {
         </div>
       )}
 
-      {/* CURRENT STATUS CARD */}
-      <div
-        style={{
-          background: isWalkIn
-            ? 'linear-gradient(135deg, #374151 0%, #111827 100%)'
-            : isExpired
-            ? 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)'
-            : 'linear-gradient(135deg, var(--primary) 0%, #064e3b 100%)',
-          color: 'white',
-          padding: '2.25rem',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25)',
-          marginBottom: '2.5rem',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        <div style={{ position: 'absolute', top: '-20px', right: '-20px', fontSize: '12rem', opacity: 0.05, lineHeight: 1 }}>
-          K
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative', zIndex: 1, flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <p style={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '0.8rem', marginBottom: '0.4rem', opacity: 0.85, fontWeight: 600 }}>
-              Kinesis Sports Club
-            </p>
-            <h2 style={{ fontSize: '2.4rem', margin: 0, letterSpacing: '-0.02em' }}>
-              {isWalkIn ? 'Walk-In Guest' : `${activePlan?.name || 'Standard'} Tier`}
-            </h2>
-          </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <span
-              style={{
-                background: isWalkIn ? 'rgba(255, 255, 255, 0.2)' : isExpired ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)',
-                color: isWalkIn ? '#f3f4f6' : isExpired ? '#fca5a5' : '#a7f3d0',
-                padding: '5px 14px',
-                borderRadius: '999px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-            >
-              {isWalkIn ? 'Pay-as-you-go' : isExpired ? 'Expired' : 'Active Member'}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1, flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <p style={{ fontSize: '0.75rem', opacity: 0.8, marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Member Name
-            </p>
-            <p style={{ fontWeight: 600, fontSize: '1.15rem', margin: '0 0 0.35rem 0' }}>
-              {memberProfile?.name || 'Guest'}
-            </p>
-            <p style={{ fontSize: '0.8rem', opacity: 0.9, margin: 0, fontFamily: 'var(--font-mono)' }}>
-              Club ID: {memberProfile?.club_id || 'N/A'}
-            </p>
-          </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '0.75rem', opacity: 0.8, marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Valid Until
-            </p>
-            <p style={{ fontWeight: 600, fontSize: '1.15rem', margin: 0 }}>
-              {isWalkIn
-                ? 'Standard Access'
-                : memberProfile?.expiry_date
-                ? new Date(memberProfile.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                : '1 Year'}
-            </p>
-          </div>
-        </div>
+      {/* CURRENT STATUS CARD (Section 8: Digital Membership Card) */}
+      <div style={{ marginBottom: '2.5rem', maxWidth: '580px' }}>
+        <DigitalMembershipCard member={memberProfile} pricingCtx={pricingCtx} />
       </div>
 
       {/* ACTIVE TIER PRIVILEGES */}

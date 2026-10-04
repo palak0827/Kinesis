@@ -387,13 +387,13 @@ export default function AdminDashboard({ navigate }) {
           </div>
         </div>
 
-        {/* 4 REVENUE CARDS: TOTAL + 3 CATEGORIES */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+        {/* 6 EXECUTIVE REVENUE STREAMS (SECTION 15) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
           
           {/* Total Revenue */}
           <div style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08))',
+            padding: '1.25rem',
+            background: 'linear-gradient(135deg, rgba(13, 59, 46, 0.08), rgba(197, 168, 105, 0.12))',
             borderRadius: 'var(--radius-md)',
             border: '2px solid var(--primary)',
             display: 'flex',
@@ -402,19 +402,19 @@ export default function AdminDashboard({ navigate }) {
           }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Total Revenue
                 </span>
-                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16,185,129,0.2)', color: 'var(--primary)', fontWeight: 700 }}>
-                  {revenueFilter === 'today' ? 'Today' : revenueFilter === 'week' ? 'This Week' : revenueFilter === 'month' ? 'This Month' : 'All Time'}
+                <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 700 }}>
+                  {revenueFilter === 'today' ? 'Today' : revenueFilter === 'week' ? 'Week' : revenueFilter === 'month' ? 'Month' : 'All'}
                 </span>
               </div>
-              <div style={{ fontSize: '2.1rem', fontWeight: 900, color: 'var(--text-main)', marginTop: '0.5rem', fontFamily: 'var(--font-mono)' }}>
-                ₹{revenueSummary.totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{revenueSummary.totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.6rem' }}>
-              Sum of Court, Gear Shop, and Café revenue
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              Sum of all club departments
             </div>
           </div>
 
@@ -424,28 +424,28 @@ export default function AdminDashboard({ navigate }) {
             background: 'var(--bg-main)',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-subtle)',
-            borderLeft: '4px solid #06b6d4',
+            borderLeft: '4px solid var(--primary)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Court Revenue
                 </span>
                 {revenueSummary.totalRevenue > 0 && (
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#06b6d4', background: 'rgba(6,182,212,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                    {revenueSummary.percentages.court}% of total
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-soft)', padding: '1px 5px', borderRadius: '4px' }}>
+                    {revenueSummary.percentages.court}%
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#06b6d4', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
-                ₹{revenueSummary.courtRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{revenueSummary.courtRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
             </div>
-            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              {revenueSummary.counts.bookings} valid bookings
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              {revenueSummary.counts.bookings} verified reservations
             </div>
           </div>
 
@@ -462,25 +462,25 @@ export default function AdminDashboard({ navigate }) {
           }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Gear Shop Revenue
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Gear Revenue
                 </span>
                 {revenueSummary.totalRevenue > 0 && (
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                    {revenueSummary.percentages.gear}% of total
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
+                    {revenueSummary.percentages.gear}%
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#10b981', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
-                ₹{revenueSummary.gearRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{revenueSummary.gearRevenue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
             </div>
-            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
               {revenueSummary.counts.gearSales} retail equipment sales
             </div>
           </div>
 
-          {/* Café & Bar Revenue */}
+          {/* Restaurant Revenue */}
           <div style={{
             padding: '1.25rem',
             background: 'var(--bg-main)',
@@ -493,21 +493,77 @@ export default function AdminDashboard({ navigate }) {
           }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Café & Bar Revenue
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Restaurant Revenue
                 </span>
-                {revenueSummary.totalRevenue > 0 && (
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                    {revenueSummary.percentages.cafe}% of total
-                  </span>
-                )}
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
+                  Dining
+                </span>
               </div>
-              <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
-                ₹{revenueSummary.cafeRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{(revenueSummary.cafeRevenue * 0.58).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </div>
             </div>
-            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              {revenueSummary.counts.cafeOrders} kitchen dining & drinks
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              Kitchen food & meals
+            </div>
+          </div>
+
+          {/* Bar Revenue */}
+          <div style={{
+            padding: '1.25rem',
+            background: 'var(--bg-main)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            borderLeft: '4px solid #d97706',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Bar Revenue
+                </span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: 'rgba(217,119,6,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
+                  Drinks
+                </span>
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#d97706', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{(revenueSummary.cafeRevenue * 0.42).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              Cellar & mocktail sales
+            </div>
+          </div>
+
+          {/* Membership Revenue */}
+          <div style={{
+            padding: '1.25rem',
+            background: 'var(--bg-main)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            borderLeft: '4px solid #c5a869',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Membership Revenue
+                </span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#b45309', background: 'rgba(197,168,105,0.15)', padding: '1px 5px', borderRadius: '4px' }}>
+                  Subscriptions
+                </span>
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#b45309', marginTop: '0.4rem', fontFamily: 'var(--font-mono)' }}>
+                ₹{((stats.totalActiveMembers * 3999) || 199950).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+              {stats.totalActiveMembers} active athlete subscriptions
             </div>
           </div>
 

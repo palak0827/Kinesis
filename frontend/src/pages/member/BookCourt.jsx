@@ -6,6 +6,10 @@ import { recordPayment } from '@backend/services/paymentService.js';
 import CourtETicket from '../../components/CourtETicket.jsx';
 import PaymentMethodSelector from '../../components/PaymentMethodSelector.jsx';
 import { validatePaymentForm, normalizeCardNumber } from '../../utils/paymentValidation.js';
+import {
+  Calendar, Clock, CheckCircle2, XCircle, AlertTriangle,
+  ArrowLeft, ArrowRight, ShieldCheck, ChevronRight, Check
+} from 'lucide-react';
 
 export default function BookCourt({ navigate }) {
   const { memberProfile } = useAuth();
@@ -34,12 +38,12 @@ export default function BookCourt({ navigate }) {
 
   // Available sports at Kinesis Sports Club (including Table Tennis)
   const SPORTS = [
-    { id: 'Tennis', label: 'Tennis', icon: '🎾' },
-    { id: 'Badminton', label: 'Badminton', icon: '🏸' },
-    { id: 'Table Tennis', label: 'Table Tennis', icon: '🏓' },
-    { id: 'Squash', label: 'Squash', icon: '👟' },
-    { id: 'Padel', label: 'Padel', icon: '🎾' },
-    { id: 'Cricket', label: 'Cricket', icon: '🏏' }
+    { id: 'Tennis', label: 'Tennis', icon: '🎾', desc: 'Championship acrylic & clay courts' },
+    { id: 'Badminton', label: 'Badminton', icon: '🏸', desc: 'BWF synthetic tournament courts' },
+    { id: 'Table Tennis', label: 'Table Tennis', icon: '🏓', desc: 'ITTF-standard arenas' },
+    { id: 'Squash', label: 'Squash', icon: '👟', desc: 'WSF glass-back courts' },
+    { id: 'Padel', label: 'Padel', icon: '🎾', desc: 'Super-panoramic glass courts' },
+    { id: 'Cricket', label: 'Cricket', icon: '🏏', desc: 'Match pitch & bowling nets' }
   ];
 
   // Fetch courts dynamically based on selected sport
@@ -158,7 +162,7 @@ export default function BookCourt({ navigate }) {
 
     setError('');
 
-    // Pre-check daily quota before advancing (Phase 23 & 24)
+    // Pre-check daily quota before advancing
     if (memberProfile?.id) {
       const quotaCheck = await checkMemberDailyLimit(memberProfile.id, date);
       if (!quotaCheck.allowed) {
@@ -183,8 +187,17 @@ export default function BookCourt({ navigate }) {
     (Number(selectedCourt?.hourly_rate || 0) * (duration / 30))
   );
 
+  const calculateEndTime = (startStr, dur = duration) => {
+    if (!startStr) return '';
+    const [h, m] = startStr.split(':').map(Number);
+    const total = h * 60 + m + dur;
+    const endH = String(Math.floor(total / 60)).padStart(2, '0');
+    const endM = String(total % 60).padStart(2, '0');
+    return `${endH}:${endM}`;
+  };
+
   const handleConfirm = async () => {
-    if (submitting || isSubmittingRef.current) return; // Prevent duplicate rapid clicks
+    if (submitting || isSubmittingRef.current) return;
     setError('');
 
     if (!memberProfile?.id) {
@@ -297,7 +310,7 @@ export default function BookCourt({ navigate }) {
             console.error('Error refreshing bookings:', fetchErr);
           }
         }
-        setStep(3); // Step back to slot selector so user can pick another slot
+        setStep(3);
       } else {
         setError(err.message || 'Unable to create booking. Please try again.');
       }
@@ -307,204 +320,344 @@ export default function BookCourt({ navigate }) {
     }
   };
 
-  const calculateEndTime = (startStr, dur = duration) => {
-    if (!startStr) return '';
-    const [h, m] = startStr.split(':').map(Number);
-    const total = h * 60 + m + dur;
-    const endH = String(Math.floor(total / 60)).padStart(2, '0');
-    const endM = String(total % 60).padStart(2, '0');
-    return `${endH}:${endM}`;
-  };
+  const bookingSequence = [
+    { num: 1, label: 'SPORT', active: step >= 1, done: step > 1 },
+    { num: 2, label: 'COURT', active: step >= 2, done: step > 2 },
+    { num: 3, label: 'DATE & TIME', active: step >= 3, done: step > 3 },
+    { num: 4, label: 'PAYMENT & CONFIRM', active: step >= 4, done: false }
+  ];
 
   return (
-    <div className="page-wrapper" style={{ maxWidth: '900px' }}>
-      <button onClick={() => navigate('home')} className="btn btn-secondary" style={{ marginBottom: '2rem', border: 'none', paddingLeft: 0 }}>
-        &larr; Back to Home
-      </button>
-
-      <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Book a Court & Facility</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-        Select your sport, facility, reservation date, and preferred time slot.
-      </p>
+    <div className="page-wrapper" style={{ maxWidth: '980px', padding: 0 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <button
+            onClick={() => navigate('home')}
+            className="btn btn-ghost"
+            style={{ padding: '0 0.5rem', height: '32px', marginBottom: '0.5rem', gap: '0.35rem' }}
+          >
+            <ArrowLeft size={16} /> Back to Dashboard
+          </button>
+          <h1 style={{ fontSize: '2rem', margin: 0, color: 'var(--text-main)' }}>
+            Court Booking & Scheduling
+          </h1>
+          <p style={{ margin: '0.2rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.92rem' }}>
+            Tournament-spec indoor and outdoor sports facilities with real-time reservation.
+          </p>
+        </div>
+      </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem' }}>
-          ✕ {error}
+        <div
+          className="card"
+          style={{
+            background: 'rgba(239, 68, 68, 0.08)',
+            borderLeft: '4px solid var(--color-danger)',
+            color: '#b91c1c',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            fontSize: '0.92rem'
+          }}
+        >
+          <AlertTriangle size={20} color="var(--color-danger)" style={{ flexShrink: 0 }} />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* STEP INDICATOR */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-        {['1. Select Sport', '2. Choose Court', '3. Date & Time', '4. Payment & Confirm'].map((label, idx) => (
-          <div
-            key={idx}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: 'var(--radius-sm)',
-              background: step === idx + 1 ? 'var(--primary)' : 'var(--bg-surface)',
-              color: step === idx + 1 ? 'white' : 'var(--text-muted)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            {label}
-          </div>
+      {/* ========================================================
+          BOOKING SEQUENCE STEPPER (SECTION 9)
+          SPORT -> COURT -> DATE -> TIME -> DURATION -> PRICE -> PAYMENT -> CONFIRM
+         ======================================================== */}
+      <div
+        className="card"
+        style={{
+          padding: '1rem 1.25rem',
+          marginBottom: '2rem',
+          background: 'var(--bg-surface)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          overflowX: 'auto',
+          gap: '0.5rem'
+        }}
+      >
+        {bookingSequence.map((s, idx) => (
+          <React.Fragment key={s.num}>
+            <div
+              onClick={() => { if (s.done) setStep(s.num); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: s.done ? 'pointer' : 'default',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: s.done
+                    ? 'var(--color-success)'
+                    : s.active
+                    ? 'var(--primary)'
+                    : 'var(--bg-subtle)',
+                  color: s.active || s.done ? '#ffffff' : 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.8rem',
+                  fontWeight: 800
+                }}
+              >
+                {s.done ? <Check size={14} strokeWidth={3} /> : s.num}
+              </div>
+              <span
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: s.active ? 800 : 600,
+                  color: s.active ? 'var(--primary)' : 'var(--text-muted)',
+                  letterSpacing: '0.04em'
+                }}
+              >
+                {s.label}
+              </span>
+            </div>
+            {idx < bookingSequence.length - 1 && (
+              <ChevronRight size={16} color="var(--border-medium)" style={{ flexShrink: 0 }} />
+            )}
+          </React.Fragment>
         ))}
       </div>
 
-      {/* STEP 1: SELECT SPORT */}
+      {/* ========================================================
+          STEP 1: SELECT SPORT
+         ======================================================== */}
       {step === 1 && (
         <div>
-          <h3 style={{ marginBottom: '1rem' }}>Choose Sport</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
-            {SPORTS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleSelectSport(s.id)}
-                className="card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  padding: '2rem 1rem',
-                  border: sport === s.id ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  cursor: 'pointer'
-                }}
-              >
-                <span style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{s.icon}</span>
-                <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{s.label}</span>
-              </button>
-            ))}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem 0' }}>1. Select Your Sport</h3>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+              Choose from our championship facilities at Kinesis Sports Club.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
+            {SPORTS.map((s) => {
+              const isSelected = sport === s.id;
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => handleSelectSport(s.id)}
+                  className="card"
+                  style={{
+                    padding: '1.75rem 1.25rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
+                    background: isSelected ? 'var(--primary-soft)' : 'var(--bg-surface)',
+                    boxShadow: isSelected ? '0 4px 14px var(--primary-glow)' : 'var(--shadow-sm)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span style={{ fontSize: '2.5rem', marginBottom: '0.75rem', lineHeight: 1 }}>{s.icon}</span>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                    {s.label}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                    {s.desc}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* STEP 2: SELECT COURT */}
+      {/* ========================================================
+          STEP 2: SELECT COURT
+         ======================================================== */}
       {step === 2 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h3 style={{ margin: 0 }}>Available {sport} Courts</h3>
-            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem 0' }}>
+                2. Choose {sport} Facility
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+                Select a court matching your game standard and lighting preference.
+              </p>
+            </div>
+            <button onClick={() => setStep(1)} className="btn btn-secondary btn-sm">
               &larr; Change Sport
             </button>
           </div>
 
           {loadingCourts ? (
-            <p style={{ color: 'var(--text-muted)' }}>Loading courts...</p>
+            <p style={{ color: 'var(--text-muted)' }}>Loading court availability...</p>
           ) : courts.length === 0 ? (
-            <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
               <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-                No {sport.toLowerCase()} facilities are registered yet.
+                No {sport.toLowerCase()} facilities are currently registered.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
-              {courts.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => handleSelectCourt(c)}
-                  className="card"
-                  style={{
-                    cursor: c.status === 'available' ? 'pointer' : 'not-allowed',
-                    border: '1px solid var(--border-subtle)',
-                    opacity: c.status === 'available' ? 1 : 0.6,
-                    padding: '1.5rem',
-                    background: 'var(--bg-surface)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.15rem' }}>{c.name}</h4>
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: c.status === 'available' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                        color: c.status === 'available' ? '#10b981' : '#ef4444'
-                      }}
-                    >
-                      {c.status}
-                    </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              {courts.map((c) => {
+                const isAvail = c.status === 'available';
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => handleSelectCourt(c)}
+                    className="card"
+                    style={{
+                      cursor: isAvail ? 'pointer' : 'not-allowed',
+                      border: isAvail ? '1px solid var(--border-subtle)' : '1px dashed var(--color-danger)',
+                      opacity: isAvail ? 1 : 0.65,
+                      padding: '1.5rem',
+                      background: 'var(--bg-surface)',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-main)' }}>{c.name}</h4>
+                      <span
+                        className={`badge badge-${isAvail ? 'success' : 'danger'}`}
+                        style={{ fontSize: '0.72rem' }}
+                      >
+                        {c.status}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                      Sport: {c.sport} • Standard Tournament Surface
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                      <div>
+                        <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block' }}>
+                          RATE
+                        </span>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                          ₹{Number(c.hourly_rate).toFixed(0)}
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}> / 30 min</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!isAvail}
+                        className={`btn ${isAvail ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      >
+                        {isAvail ? 'Select Court' : 'Under Maintenance'}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                    ₹{Number(c.hourly_rate).toFixed(0)} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ 30 min</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* STEP 3: DATE & TIME SELECTION */}
+      {/* ========================================================
+          STEP 3: DATE, DURATION & TIME SELECTION
+         ======================================================== */}
       {step === 3 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <h3 style={{ margin: 0 }}>Select Date & Time</h3>
-              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>
+              <h3 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem 0' }}>
+                3. Select Date, Duration & Time Slot
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>
                 {selectedCourt?.name} • ₹{Number(selectedCourt?.hourly_rate).toFixed(0)} / 30 min
               </p>
             </div>
-            <button onClick={() => setStep(2)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}>
+            <button onClick={() => setStep(2)} className="btn btn-secondary btn-sm">
               &larr; Change Facility
             </button>
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-              RESERVATION DATE
-            </label>
-            <input
-              type="date"
-              value={date}
-              min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setDate(e.target.value)}
-              className="form-input"
-              style={{ padding: '0.65rem 1rem', fontSize: '1rem', borderRadius: 'var(--radius-sm)' }}
-            />
-          </div>
+          {/* Controls: Date & Duration */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div className="card" style={{ padding: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+                RESERVATION DATE
+              </label>
+              <input
+                type="date"
+                value={date}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDate(e.target.value)}
+                className="form-input"
+              />
+            </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              SESSION DURATION
-            </label>
-            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-              {[30, 60, 90, 120].map((dur) => (
-                <button
-                  key={dur}
-                  type="button"
-                  onClick={() => setDuration(dur)}
-                  className="btn"
-                  style={{
-                    padding: '0.55rem 1.1rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: duration === dur ? 'var(--primary)' : 'var(--bg-surface)',
-                    color: duration === dur ? 'white' : 'var(--text-main)',
-                    border: duration === dur ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
-                    fontWeight: 700,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {dur} Minutes ({dur / 30} {dur === 30 ? 'slot' : 'slots'})
-                </button>
-              ))}
+            <div className="card" style={{ padding: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
+                PLAY DURATION
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                {[30, 60, 90, 120].map((dur) => (
+                  <button
+                    key={dur}
+                    type="button"
+                    onClick={() => setDuration(dur)}
+                    className="btn"
+                    style={{
+                      height: '42px',
+                      padding: '0 0.25rem',
+                      background: duration === dur ? 'var(--primary)' : 'var(--bg-main)',
+                      color: duration === dur ? '#ffffff' : 'var(--text-main)',
+                      border: duration === dur ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
+                      fontWeight: 700,
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    {dur}m
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <h4 style={{ marginBottom: '0.75rem', fontSize: '0.95rem' }}>Available Time Slots ({duration} Minutes)</h4>
+          {/* Slot Legend (Section 9) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'var(--bg-surface)', border: '2px solid var(--color-success)' }} />
+              <span style={{ fontWeight: 600 }}>AVAILABLE</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'var(--primary)', border: '2px solid var(--accent-gold)' }} />
+              <span style={{ fontWeight: 600 }}>SELECTED</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444' }} />
+              <span style={{ fontWeight: 600 }}>BOOKED</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '3px', background: 'var(--bg-subtle)', border: '1px dashed var(--text-muted)' }} />
+              <span style={{ fontWeight: 600 }}>MAINTENANCE</span>
+            </div>
+          </div>
 
           {loadingSlots ? (
             <p style={{ color: 'var(--text-muted)' }}>Checking court schedule...</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
               {slots.map((s) => {
                 const booked = isSlotBooked(s);
+                const isSelected = time === s.start;
+
                 return (
                   <button
                     key={s.start}
@@ -512,23 +665,67 @@ export default function BookCourt({ navigate }) {
                     onClick={() => handleSelectSlot(s)}
                     className="btn"
                     style={{
-                      padding: '0.75rem 0.5rem',
+                      height: 'auto',
+                      padding: '0.85rem 0.6rem',
                       borderRadius: 'var(--radius-sm)',
-                      background: booked ? 'var(--bg-main)' : 'var(--bg-surface)',
-                      color: booked ? 'var(--text-muted)' : 'var(--text-main)',
-                      border: booked ? '1px solid var(--border-subtle)' : '1px solid var(--border-subtle)',
+                      background: isSelected
+                        ? 'var(--primary)'
+                        : booked
+                        ? 'rgba(239, 68, 68, 0.05)'
+                        : 'var(--bg-surface)',
+                      color: isSelected
+                        ? '#ffffff'
+                        : booked
+                        ? 'var(--text-muted)'
+                        : 'var(--text-main)',
+                      border: isSelected
+                        ? '2px solid var(--accent-gold)'
+                        : booked
+                        ? '1px solid rgba(239, 68, 68, 0.25)'
+                        : '1px solid var(--border-subtle)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       cursor: booked ? 'not-allowed' : 'pointer',
-                      opacity: booked ? 0.5 : 1
+                      boxShadow: isSelected ? '0 4px 12px var(--primary-glow)' : 'var(--shadow-xs)',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    <span style={{ fontWeight: 700, fontSize: '0.92rem' }}>{s.start}</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>to {s.end}</span>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: booked ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
-                      {booked ? 'BOOKED' : 'AVAILABLE'}
-                    </span>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{s.start}</span>
+                    <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>to {s.end}</span>
+                    <div
+                      style={{
+                        marginTop: '0.35rem',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                        color: isSelected
+                          ? 'var(--accent-gold)'
+                          : booked
+                          ? 'var(--color-danger)'
+                          : 'var(--color-success)'
+                      }}
+                    >
+                      {isSelected ? (
+                        <>
+                          <Check size={11} strokeWidth={3} />
+                          <span>SELECTED</span>
+                        </>
+                      ) : booked ? (
+                        <>
+                          <XCircle size={11} />
+                          <span>BOOKED</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={11} />
+                          <span>AVAILABLE</span>
+                        </>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -537,69 +734,87 @@ export default function BookCourt({ navigate }) {
         </div>
       )}
 
-      {/* STEP 4: REVIEW, PAYMENT & CONFIRMATION */}
+      {/* ========================================================
+          STEP 4: REVIEW, PRICE & PAYMENT CONFIRMATION
+         ======================================================== */}
       {step === 4 && (
-        <div className="card" style={{ borderLeft: '4px solid var(--primary)', padding: '2rem' }}>
+        <div className="card-athletic" style={{ padding: '2.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Step 4: Review & Confirm Booking
+            <h3 style={{ fontSize: '1.15rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              4. Review Booking & Payment
             </h3>
-            <button onClick={() => setStep(3)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.9rem' }}>
+            <button onClick={() => setStep(3)} className="btn btn-secondary btn-sm">
               &larr; Change Slot
             </button>
           </div>
 
-          <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+          {/* Reservation Breakdown Card */}
+          <div
+            style={{
+              background: 'var(--bg-main)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              padding: '1.25rem 1.5rem',
+              marginBottom: '1.75rem',
+              display: 'grid',
+              gap: '0.65rem',
+              fontSize: '0.92rem'
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Sport:</span>
-              <strong>{sport}</strong>
+              <span style={{ color: 'var(--text-muted)' }}>Sport & Facility:</span>
+              <strong>{sport} — {selectedCourt?.name}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Court / Facility:</span>
-              <strong>{selectedCourt?.name}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Duration:</span>
-              <strong>{duration} Minutes</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Reserved Timing:</span>
-              <strong>{time} – {calculateEndTime(time, duration)}</strong>
-            </div>
-
-            <div style={{ margin: '0.5rem 0', borderTop: '1px solid var(--border-subtle)' }}></div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Rate:</span>
-              <span>₹{Number(selectedCourt?.hourly_rate || 0).toFixed(0)} / 30 min</span>
+              <span style={{ color: 'var(--text-muted)' }}>Schedule Timing:</span>
+              <strong>{date} • {time} – {calculateEndTime(time, duration)} ({duration}m)</strong>
             </div>
 
+            <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0.25rem 0' }} />
+
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>{Math.round(duration / 30)} × 30-minute {Math.round(duration / 30) === 1 ? 'slot' : 'slots'}:</span>
-              <span>₹{Number(priceInfo?.basePrice ?? (Number(selectedCourt?.hourly_rate || 0) * (duration / 30))).toFixed(2)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>Court Rate ({Math.round(duration / 30)} × 30-min slot{Math.round(duration / 30) === 1 ? '' : 's'}):</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>₹{Number(priceInfo?.basePrice ?? (Number(selectedCourt?.hourly_rate || 0) * (duration / 30))).toFixed(2)}</span>
             </div>
 
             {priceInfo?.discountAmount > 0 ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 600 }}>
-                <span>{priceInfo?.planName} Member Discount ({priceInfo?.discountPercent}%):</span>
-                <span>-₹{Number(priceInfo?.discountAmount).toFixed(2)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-success)', fontWeight: 600 }}>
+                <span>{priceInfo?.planName} Tier Court Discount ({priceInfo?.discountPercent}%):</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>-₹{Number(priceInfo?.discountAmount).toFixed(2)}</span>
               </div>
             ) : (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                 <span>Member Discount:</span>
                 <span>₹0.00 (Walk-In / Standard Rate)</span>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem', fontWeight: 800, fontSize: '1.3rem' }}>
-              <span>Final Price:</span>
-              <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                ₹{calculatedFinalPrice.toFixed(2)}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTop: '1px solid var(--border-subtle)',
+                paddingTop: '0.75rem',
+                marginTop: '0.25rem'
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block' }}>
+                  TOTAL TO PAY
+                </span>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+                  ₹{calculatedFinalPrice.toFixed(2)}
+                </div>
+              </div>
+
+              <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                PRICE LOCKED
               </span>
             </div>
           </div>
 
-          {/* Centralized Payment Method Selector */}
+          {/* Centralized Payment Method Selector (Phase 6.2 Compliant) */}
           <PaymentMethodSelector
             paymentMethod={paymentMethod}
             onSelectMethod={(method) => {
@@ -629,15 +844,15 @@ export default function BookCourt({ navigate }) {
             id="confirm-reserve-court-btn"
             onClick={handleConfirm}
             disabled={submitting}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', fontWeight: 700 }}
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', marginTop: '1.5rem', fontWeight: 800 }}
           >
             {submitting ? 'Processing...' : `Confirm & Reserve Court (₹${calculatedFinalPrice.toFixed(2)})`}
           </button>
         </div>
       )}
 
-      {/* COURT E-TICKET CONFIRMATION MODAL (Phase 10) */}
+      {/* COURT E-TICKET CONFIRMATION MODAL */}
       {completedBooking && (
         <CourtETicket
           booking={completedBooking}
