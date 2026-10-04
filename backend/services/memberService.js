@@ -104,7 +104,14 @@ export async function getMemberById(id) {
         `)
         .eq('id', numId)
         .single();
-      if (!error && data) return data;
+      if (!error && data) {
+        const local = localStore.members.find((m) => m.id === numId);
+        const resolvedClubId = data.club_id || local?.club_id || String(1000000000 + numId);
+        return {
+          ...data,
+          club_id: resolvedClubId
+        };
+      }
     } catch (err) {
       console.warn('Supabase getMemberById error:', err);
     }
@@ -114,8 +121,10 @@ export async function getMemberById(id) {
   if (!member) return null;
 
   const plan = localStore.plans.find((p) => p.id === Number(member.plan_id)) || null;
+  const resolvedClubId = member.club_id || String(1000000000 + numId);
   return {
     ...member,
+    club_id: resolvedClubId,
     membership_plans: plan
   };
 }
@@ -260,6 +269,14 @@ export async function deleteMember(id) {
 }
 
 /**
+ * Validate 10-digit numeric club ID format
+ */
+export function validateClubIdFormat(clubId) {
+  const cleanId = String(clubId || '').trim();
+  return /^\d{10}$/.test(cleanId);
+}
+
+/**
  * Fetch member/walk-in customer by unique 10-digit Club ID.
  * Strict validation: exactly 10 numeric digits.
  */
@@ -270,7 +287,7 @@ export async function getMemberByClubId(clubId) {
     throw new Error('Club ID is required.');
   }
 
-  if (!/^\d{10}$/.test(cleanId)) {
+  if (!validateClubIdFormat(cleanId)) {
     throw new Error('Club ID must be exactly 10 numeric digits.');
   }
 

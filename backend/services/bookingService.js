@@ -300,19 +300,27 @@ export async function calculateBookingPrice(courtId, memberId, durationMinutes =
 
   const isWalkIn = member.user_type === 'WALK_IN' || (!member.plan_id && !member.membership_plans);
   let isExpired = member.status === 'expired';
+  let notStarted = false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (member.start_date) {
+    const start = new Date(member.start_date);
+    start.setHours(0, 0, 0, 0);
+    if (today < start) notStarted = true;
+  }
+
   if (member.expiry_date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const exp = new Date(member.expiry_date);
     exp.setHours(23, 59, 59, 999);
     if (today > exp) isExpired = true;
   }
 
   let discountPercent = 0;
-  let planName = isWalkIn ? 'Walk-In Guest' : isExpired ? 'Expired Member' : 'None';
+  let planName = isWalkIn ? 'Walk-In Guest' : isExpired ? 'Expired Member' : notStarted ? 'Pending Member' : 'None';
 
   // Active paid members receive tier discount
-  if (!isWalkIn && !isExpired && member.status === 'active' && member.membership_plans) {
+  if (!isWalkIn && !isExpired && !notStarted && member.status === 'active' && member.membership_plans) {
     discountPercent = Number(member.membership_plans.court_discount) || 0;
     planName = member.membership_plans.name;
   }

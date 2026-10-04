@@ -192,15 +192,22 @@ export async function recordSale({ productId, memberId = null, quantity = 1, pay
   if (mId) {
     memberDetails = await getMemberById(mId);
     let isExpired = false;
+    let notStarted = false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (memberDetails && memberDetails.start_date) {
+      const start = new Date(memberDetails.start_date);
+      start.setHours(0, 0, 0, 0);
+      if (today < start) notStarted = true;
+    }
     if (memberDetails && memberDetails.expiry_date) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const exp = new Date(memberDetails.expiry_date);
       exp.setHours(23, 59, 59, 999);
       if (today > exp) isExpired = true;
     }
     const isWalkIn = memberDetails?.user_type === 'WALK_IN';
-    if (memberDetails && !isExpired && !isWalkIn && memberDetails.status === 'active' && memberDetails.membership_plans) {
+    if (memberDetails && !isExpired && !notStarted && !isWalkIn && memberDetails.status === 'active' && memberDetails.membership_plans) {
       const isBarItem = product.category === 'Drinks & Nutrition' || product.category === 'Café' || product.category === 'Bar';
       discountPercent = isBarItem
         ? (Number(memberDetails.membership_plans.bar_discount) || 0)

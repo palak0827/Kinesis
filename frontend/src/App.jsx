@@ -108,6 +108,11 @@ function PortalHeader({ title, user, role, onProfileClick }) {
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <img
+          src="/logo2.png"
+          alt="Kinesis"
+          style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }}
+        />
         <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--primary)', textTransform: 'uppercase' }}>
           KINESIS SPORTS CLUB
         </span>
@@ -286,6 +291,34 @@ export default function App() {
     </button>
   );
 
+  const SidebarBrand = ({ subtitle, path = 'home' }) => (
+    <div
+      onClick={() => navigate(path)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        marginBottom: '1.75rem',
+        cursor: 'pointer',
+        userSelect: 'none'
+      }}
+    >
+      <img
+        src="/logo2.png"
+        alt="Kinesis Logo"
+        style={{ width: '40px', height: '40px', objectFit: 'contain', flexShrink: 0 }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--primary)', lineHeight: 1 }}>
+          KINESIS
+        </span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '2px' }}>
+          {subtitle}
+        </span>
+      </div>
+    </div>
+  );
+
   const renderMember = () => {
     let content;
     if (route === 'book') content = <BookCourt navigate={navigate} />;
@@ -300,10 +333,7 @@ export default function App() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
         <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('home')}>
-            KINESIS<br/>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Member Portal</span>
-          </h2>
+          <SidebarBrand subtitle="Member Portal" path="home" />
           
           <div style={{ marginBottom: '1.25rem' }}>
             <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.4rem', fontWeight: 600 }}>Home</div>
@@ -360,10 +390,7 @@ export default function App() {
   const renderRestaurant = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: '#b45309', cursor: 'pointer' }} onClick={() => navigate('restaurant-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Restaurant Manager</span>
-        </h2>
+        <SidebarBrand subtitle="Restaurant Manager" path="restaurant-dashboard" />
         <SidebarButton path="restaurant-dashboard" label="Dining Floor & Orders" active={true} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
@@ -382,10 +409,7 @@ export default function App() {
   const renderBar = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: '#d97706', cursor: 'pointer' }} onClick={() => navigate('bar-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Bar Manager</span>
-        </h2>
+        <SidebarBrand subtitle="Bar Manager" path="bar-dashboard" />
         <SidebarButton path="bar-dashboard" label="Bar & Cellar Operations" active={true} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
@@ -404,10 +428,7 @@ export default function App() {
   const renderShop = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: '#10b981', cursor: 'pointer' }} onClick={() => navigate('shop-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Gear Shop Manager</span>
-        </h2>
+        <SidebarBrand subtitle="Gear Shop Manager" path="shop-dashboard" />
         <SidebarButton path="shop-dashboard" label="Pro Gear Inventory & Sales" active={true} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
@@ -426,10 +447,7 @@ export default function App() {
   const renderCourt = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('court-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Court Manager</span>
-        </h2>
+        <SidebarBrand subtitle="Court Manager" path="court-dashboard" />
         <SidebarButton path="court-dashboard" label="Courts & E-Ticket Desk" active={true} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
@@ -448,10 +466,7 @@ export default function App() {
   const renderStaff = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: '#b45309', cursor: 'pointer' }} onClick={() => navigate('staff-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Personal Staff & HR</span>
-        </h2>
+        <SidebarBrand subtitle="Personal Staff & HR" path="staff-dashboard" />
         <SidebarButton path="staff-dashboard" label="Personal Staff Hub" active={route === 'staff-dashboard'} />
         <SidebarButton path="staff-inventory" label="Inventory Overview" active={route === 'staff-inventory'} />
         <SidebarButton path="staff-tables" label="Café Tables" active={route === 'staff-tables'} />
@@ -474,10 +489,7 @@ export default function App() {
   const renderReception = () => (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ margin: '0 0 2rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('reception-dashboard')}>
-          KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Reception Desk</span>
-        </h2>
+        <SidebarBrand subtitle="Reception Desk" path="reception-dashboard" />
         <SidebarButton path="reception-dashboard" label="Front Desk & Registration" active={true} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
           <button onClick={handleLogout} style={{ width: '100%', textAlign: 'left', padding: '0.75rem 1rem', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
@@ -514,10 +526,7 @@ export default function App() {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
         <div style={{ width: '270px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h2 style={{ margin: '0 0 1.75rem 0', color: 'var(--primary)', cursor: 'pointer' }} onClick={() => navigate('admin-dashboard')}>
-            KINESIS<br/>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Executive Admin</span>
-          </h2>
+          <SidebarBrand subtitle="Executive Admin" path="admin-dashboard" />
           
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.35rem', fontWeight: 700 }}>Executive</div>

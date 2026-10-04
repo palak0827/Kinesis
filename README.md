@@ -160,6 +160,10 @@ Open `http://localhost:5173` in your browser. The app runs immediately with pre-
 
 In the development server, choose **Login** and then **Open Local Demo Dashboard**. This opens the admin dashboard with seeded sample data and does not sign in to or read/write to Supabase. Demo changes persist in this browser; choose **Reset Demo Data** in the dashboard to restore the original sample data. This development-only option is not available in production builds.
 
+### Unified Email Login
+
+The login page accepts one email address and password for every account type. The app identifies the account from the member record, staff roster, or configured administrator account, then opens the portal assigned to that role. Walk-in registrations use the member portal.
+
 ---
 
 ## 🔌 Supabase Setup (Optional Live DB)

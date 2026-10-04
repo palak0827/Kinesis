@@ -83,16 +83,16 @@ export default function BarPortal({ navigate }) {
 
       const outOfStock = barProducts.filter(p => Number(p.stock_quantity) === 0).length;
       const lowStock = barProducts.filter(p => Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 5)).length;
-      const prep = (ordersData || []).filter(o => o.status === 'PREPARING').length;
-      const rdy = (ordersData || []).filter(o => o.status === 'READY').length;
-      const active = (ordersData || []).filter(o => o.status === 'NEW' || o.status === 'PREPARING' || o.status === 'READY').length;
+      const prep = barOrders.filter(o => o.status === 'PREPARING').length;
+      const rdy = barOrders.filter(o => o.status === 'READY').length;
+      const active = barOrders.filter(o => o.status === 'NEW' || o.status === 'PREPARING' || o.status === 'READY').length;
 
       const availTables = (tablesData || []).filter(t => t.status === 'AVAILABLE').length;
       const occTables = (tablesData || []).filter(t => t.status === 'OCCUPIED').length;
 
       setKpis({
         todayRevenue: revData?.cafeRevenue || 0,
-        todayOrders: ordersData?.length || 0,
+        todayOrders: barOrders.length,
         activeOrders: active,
         preparing: prep,
         ready: rdy,

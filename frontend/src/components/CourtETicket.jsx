@@ -1,11 +1,64 @@
 import React from 'react';
-import { CheckCircle2, XCircle, Printer, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Printer, Download, X } from 'lucide-react';
 
 export default function CourtETicket({ booking, onClose, onNavigateBookings }) {
   if (!booking) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownload = () => {
+    const isCancelled = booking.status === 'cancelled';
+    const member = booking.members;
+    const planName = member?.membership_plans?.name;
+    const customerType = member?.user_type === 'WALK_IN' ? 'Walk-In Guest' : (planName ? `${planName} Member` : 'Club Member');
+    const courtName = booking.courts?.name || `Court #${booking.court_id}`;
+    const sport = booking.courts?.sport || 'Racquet Sports';
+    const startTimeStr = booking.start_time?.slice(0, 5) || '09:00';
+    const endTimeStr = booking.end_time?.slice(0, 5) || '10:00';
+    const ticketId = booking.ticket_id || `#KSC-BKG-${String(booking.id).padStart(4, '0')}`;
+
+    const content = `=====================================================
+               KINESIS SPORTS CLUB
+             COURT BOOKING E-TICKET
+=====================================================
+Ticket Number:   ${ticketId}
+Booking Status:  ${isCancelled ? 'CANCELLED' : 'CONFIRMED'}
+Date of Booking: ${booking.booking_date || 'N/A'}
+Schedule Slot:   ${startTimeStr} - ${endTimeStr}
+
+PLAYER INFORMATION:
+Player Name:     ${member?.name || 'Club Customer'}
+Category:        ${customerType}
+Club ID:         ${member?.club_id || 'N/A'}
+
+VENUE INFORMATION:
+Facility:        ${courtName}
+Sport:           ${sport}
+
+FINANCIAL DETAILS:
+Total Charged:   INR ${Number(booking.price || 0).toFixed(2)}
+Payment Method:  ${booking.payment_method || 'CARD'}
+Payment Status:  ${booking.payment_status || 'PAID'}
+
+INSTRUCTIONS FOR ENTRY:
+1. Present this official E-Ticket at reception upon arrival.
+2. Mandatory non-marking indoor court shoes required.
+3. Cancellation permitted up to 2 hours before scheduled slot.
+
+Thank you for choosing Kinesis Sports Club!
+=====================================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Kinesis-Ticket-${String(booking.ticket_id || booking.id).replace(/[^a-zA-Z0-9_-]/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const isCancelled = booking.status === 'cancelled';
@@ -244,6 +297,16 @@ export default function CourtETicket({ booking, onClose, onNavigateBookings }) {
               View My Bookings
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="btn btn-secondary"
+            style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
+          >
+            <Download size={16} />
+            <span>Download Ticket</span>
+          </button>
 
           <button
             type="button"

@@ -140,15 +140,22 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
   // It NEVER determines inventory priority. Limited resources are allocated FCFS.
   let bar_discount = 0;
   let isExpired = false;
+  let notStarted = false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (member && member.start_date) {
+    const start = new Date(member.start_date);
+    start.setHours(0, 0, 0, 0);
+    if (today < start) notStarted = true;
+  }
   if (member && member.expiry_date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const exp = new Date(member.expiry_date);
     exp.setHours(23, 59, 59, 999);
     if (today > exp) isExpired = true;
   }
   const isWalkIn = member?.user_type === 'WALK_IN';
-  if (member && !isExpired && !isWalkIn && member.status === 'active' && member.membership_plans) {
+  if (member && !isExpired && !notStarted && !isWalkIn && member.status === 'active' && member.membership_plans) {
     bar_discount = Number(member.membership_plans.bar_discount) || 0;
   }
 
@@ -165,6 +172,16 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
 
   // Step 9: Database execution
   let createdOrder = null;
+  const orderRecord = {
+    member_id: member ? member.id : null,
+    subtotal,
+    discount_amount: discountAmount,
+    total: finalTotal,
+    payment_method: paymentMethod || 'CARD',
+    status: 'NEW',
+    priority: safePriority,
+    created_at: new Date().toISOString()
+  };
 
   if (shouldUseSupabase()) {
     // 9A. Try PostgreSQL atomic RPC function first
@@ -237,17 +254,6 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
       }
 
       // PHASE 2: INSERT ORDER HEADER AFTER ALL ITEMS ARE SUCCESSFULLY RESERVED
-      const orderRecord = {
-        member_id: member ? member.id : null,
-        subtotal: subtotal,
-        discount_amount: discountAmount,
-        total: finalTotal,
-        payment_method: paymentMethod || 'CARD',
-        status: 'NEW',
-        priority: safePriority,
-        created_at: new Date().toISOString()
-      };
-
       let insertedOrder = null;
       const { data: ordData, error: ordError } = await supabase
         .from('cafe_orders')
@@ -834,4 +840,3 @@ export async function getKitchenStockAlerts() {
     return Number(p.stock_quantity) <= Number(p.low_stock_threshold);
   });
 }
-

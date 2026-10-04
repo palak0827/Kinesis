@@ -80,8 +80,8 @@ export default function RestaurantPortal({ navigate }) {
       setFoodItems(foods);
 
       const tableSummary = calculateTableSummary(tablesData || []);
-      const prep = (ordersData || []).filter(o => o.status === 'PREPARING').length;
-      const comp = (ordersData || []).filter(o => o.status === 'COMPLETED').length;
+      const prep = restaurantOrders.filter(o => o.status === 'PREPARING').length;
+      const comp = restaurantOrders.filter(o => o.status === 'COMPLETED').length;
 
       setKpis({
         totalTables: tableSummary.total,
@@ -89,7 +89,7 @@ export default function RestaurantPortal({ navigate }) {
         reservedTables: tableSummary.reserved,
         occupiedTables: tableSummary.occupied,
         maintenanceTables: tableSummary.maintenance,
-        todayOrders: ordersData?.length || 0,
+        todayOrders: restaurantOrders.length,
         preparingOrders: prep,
         completedOrders: comp,
         todayRevenue: revData?.cafeRevenue || 0

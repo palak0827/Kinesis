@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../AuthContext.jsx';
+import PasswordInput from '../../components/PasswordInput.jsx';
 import {
-  Users, Briefcase, ArrowRight, AlertTriangle, ShieldCheck, Lock, Mail, Info
+  ArrowRight, AlertTriangle, ShieldCheck, Mail, Info
 } from 'lucide-react';
 import {
   getRouteFromPath,
   isRouteAuthorized,
-  getDefaultRouteForRole,
-  isStaffRoute
+  getDefaultRouteForRole
 } from '../../utils/routeSecurity.js';
 
 export default function Login({ navigate }) {
   const { login } = useAuth();
 
   // Read initial redirect and message from sessionStorage
-  const [authNotice, setAuthNotice] = useState(() => {
+  const [authNotice] = useState(() => {
     try {
       return sessionStorage.getItem('kinesis_auth_message') || '';
     } catch {
@@ -22,35 +22,11 @@ export default function Login({ navigate }) {
     }
   });
 
-  // ONLY TWO options as required: 'member' or 'staff'
-  const [loginMode, setLoginMode] = useState(() => {
-    try {
-      const redirect = sessionStorage.getItem('kinesis_redirect_after_login');
-      if (redirect) {
-        const targetRoute = getRouteFromPath(redirect);
-        if (isStaffRoute(targetRoute)) return 'staff';
-      }
-    } catch {}
-    return 'member';
-  });
-
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAccessNotAssigned, setIsAccessNotAssigned] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // If there was an auth message, keep it visible until user interacts
-  }, []);
-
-  const handleTabSwitch = (mode) => {
-    setLoginMode(mode);
-    setEmail('');
-    setPassword('');
-    setError('');
-    setIsAccessNotAssigned(false);
-  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -59,7 +35,7 @@ export default function Login({ navigate }) {
     setLoading(true);
 
     try {
-      const res = await login(email, password, loginMode);
+      const res = await login(identifier, password);
       const userRole = (res?.role || '').toUpperCase();
 
       // Check pending redirect from protected route access attempt
@@ -104,9 +80,9 @@ export default function Login({ navigate }) {
         style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} 
         onClick={() => navigate('landing')}
       >
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary)', color: '#d4af37', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>K</div>
-          <h1 style={{ margin: 0, letterSpacing: '0.08em', color: 'var(--primary)', fontSize: '1.6rem' }}>KINESIS</h1>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+          <img src="/logo2.png" alt="Kinesis" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+          <h1 style={{ margin: 0, letterSpacing: '0.08em', color: 'var(--primary)', fontSize: '1.7rem' }}>KINESIS</h1>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 600 }}>
           Sports Club Management Platform
@@ -115,69 +91,6 @@ export default function Login({ navigate }) {
 
       <div style={{ maxWidth: '480px', width: '100%' }}>
         
-        {/* Strictly TWO Login Options: MEMBER LOGIN & STAFF LOGIN */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '0.5rem',
-          background: 'var(--bg-surface)',
-          padding: '0.4rem',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-subtle)',
-          marginBottom: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-        }}>
-          <button
-            type="button"
-            id="tab-member-login"
-            onClick={() => handleTabSwitch('member')}
-            style={{
-              padding: '0.85rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              background: loginMode === 'member' ? 'var(--primary)' : 'transparent',
-              color: loginMode === 'member' ? '#ffffff' : 'var(--text-main)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Users size={18} />
-            MEMBER LOGIN
-          </button>
-
-          <button
-            type="button"
-            id="tab-staff-login"
-            onClick={() => handleTabSwitch('staff')}
-            style={{
-              padding: '0.85rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              background: loginMode === 'staff' ? 'var(--primary)' : 'transparent',
-              color: loginMode === 'staff' ? '#ffffff' : 'var(--text-main)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Briefcase size={18} />
-            STAFF LOGIN
-          </button>
-        </div>
-
         {/* Login Form Box */}
         <div className="card" style={{
           width: '100%',
@@ -193,23 +106,21 @@ export default function Login({ navigate }) {
               gap: '0.4rem',
               padding: '0.25rem 0.75rem',
               borderRadius: '999px',
-              background: loginMode === 'member' ? 'rgba(22, 43, 35, 0.08)' : 'rgba(217, 119, 6, 0.1)',
-              color: loginMode === 'member' ? 'var(--primary)' : '#b45309',
+              background: 'rgba(22, 43, 35, 0.08)',
+              color: 'var(--primary)',
               fontSize: '0.78rem',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               marginBottom: '0.5rem'
             }}>
-              {loginMode === 'member' ? 'Registered Member Access' : 'Club Staff & Administration'}
+              All Account Types
             </div>
             <h2 style={{ fontSize: '1.45rem', margin: '0 0 0.35rem 0', color: 'var(--text-main)' }}>
-              {loginMode === 'member' ? 'Sign In to Member Portal' : 'Sign In to Staff Portal'}
+              Sign In to Kinesis
             </h2>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              {loginMode === 'member'
-                ? 'Access court bookings, club privileges, gear shop, and café orders.'
-                : 'All employees, managers, reception, and administrators sign in here. Portal access is determined by your assigned role.'}
+              Members, walk-ins, staff, and administrators can sign in with their email and password. Your assigned role opens the correct portal.
             </p>
           </div>
 
@@ -283,14 +194,15 @@ export default function Login({ navigate }) {
                 Email Address
               </label>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <Mail size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 <input
                   type="email"
                   id="login-email-input"
-                  placeholder={loginMode === 'member' ? 'member@example.com' : 'employee@kinesis.club'}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
+                  autoComplete="username"
                   className="form-input"
                   style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '2.4rem' }}
                 />
@@ -302,29 +214,22 @@ export default function Login({ navigate }) {
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' }}>
                   Password
                 </label>
-                {loginMode === 'member' && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('forgot-password')}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.78rem', cursor: 'pointer', padding: 0 }}
-                  >
-                    Forgot Password?
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => navigate('forgot-password')}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.78rem', cursor: 'pointer', padding: 0 }}
+                >
+                  Forgot Password?
+                </button>
               </div>
-              <div style={{ position: 'relative' }}>
-                <Lock size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="password"
-                  id="login-password-input"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '2.4rem' }}
-                />
-              </div>
+              <PasswordInput
+                id="login-password-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
             </div>
 
             <button
@@ -344,14 +249,14 @@ export default function Login({ navigate }) {
                 gap: '0.5rem'
               }}
             >
-              {loading ? 'Authenticating...' : (loginMode === 'member' ? 'Sign In as Member' : 'Sign In to Staff Portal')}
+              {loading ? 'Signing In...' : 'Sign In'}
               <ArrowRight size={16} />
             </button>
           </form>
 
           {/* Footer Note */}
-          {loginMode === 'member' ? (
-            <div style={{ marginTop: '1.75rem', textAlign: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', fontSize: '0.88rem' }}>
+          <div style={{ marginTop: '1.75rem', textAlign: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem' }}>
+            <div style={{ fontSize: '0.88rem', marginBottom: '0.75rem' }}>
               <span style={{ color: 'var(--text-muted)' }}>Don't have a membership? </span>
               <button
                 type="button"
@@ -361,12 +266,11 @@ export default function Login({ navigate }) {
                 Join or Walk-in
               </button>
             </div>
-          ) : (
-            <div style={{ marginTop: '1.75rem', textAlign: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
               <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '4px', color: 'var(--primary)' }} />
-              Staff role and departmental assignments are managed centrally by the Administrator.
+              Staff role and departmental assignments are managed by the Administrator.
             </div>
-          )}
+          </div>
 
         </div>
 

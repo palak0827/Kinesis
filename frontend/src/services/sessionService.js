@@ -1,8 +1,5 @@
 /**
  * Kinesis Sports Club - Session Management
- * 
- * Simple, application-level session storage using localStorage.
- * Centralized credentials & session handling for Member and Staff logins.
  */
 
 const SESSION_KEY = 'kinesis_session';
@@ -205,4 +202,3 @@ export function getRouteForRole(role) {
   if (r === 'MEMBER') return 'home';
   return 'landing';
 }
-

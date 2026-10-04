@@ -1,6 +1,5 @@
 import React from 'react';
-import { Printer, X, CheckCircle, Clock } from 'lucide-react';
-
+import { Printer, X, CheckCircle, Clock, Download } from 'lucide-react';
 export default function ReceiptModal({
   receiptType = 'GEAR_SHOP', // 'GEAR_SHOP', 'CAFE_BAR', 'MEMBERSHIP'
   data,
@@ -46,6 +45,48 @@ export default function ReceiptModal({
   const paymentStatus = data.payment_status || data.paymentStatus || 'PAID';
   const orderStatus = data.status || 'COMPLETED';
   const clubId = data.club_id || data.clubId || data.members?.club_id || 'N/A';
+
+  const handleDownloadReceipt = () => {
+    const rawNumber = data.receiptNumber || (data.id ? `#KSC-REC-${String(data.id).padStart(4, '0')}` : '#KSC-REC-0001');
+    const cleanNumber = String(rawNumber).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const itemsList = data.items && data.items.length > 0
+      ? data.items.map(it => `  - ${it.name || it.products?.name || 'Item'} x${it.quantity} @ ₹${Number(it.unitPrice || it.unit_price || it.price).toFixed(2)} = ₹${Number(it.total || (it.quantity * (it.unitPrice || it.price))).toFixed(2)}`).join('\n')
+      : isMembership
+      ? `  - ${data.planName || 'Club'} Membership (${data.durationMonths || 12} Mos) = ₹${Number(data.subtotal || data.total).toFixed(2)}`
+      : '  - General Club Transaction';
+
+    const content = `========================================
+         KINESIS SPORTS CLUB
+         OFFICIAL TAX INVOICE & RECEIPT
+========================================
+Receipt No   : ${rawNumber}
+Date & Time  : ${dateStr} at ${timeStr}
+Customer     : ${customerName} (${customerType})
+Club ID      : ${clubId}
+Payment Mode : ${paymentMethod}
+Status       : ${paymentStatus === 'PAID' ? 'PAID' : 'PENDING COUNTER CONFIRMATION'}
+----------------------------------------
+LINE ITEMS:
+${itemsList}
+----------------------------------------
+Subtotal     : ₹${Number(data.subtotal || data.total).toFixed(2)}
+Discount     : -₹${Number(data.discount_amount || data.discountAmount || 0).toFixed(2)}
+TOTAL PAID   : ₹${Number(data.total).toFixed(2)}
+========================================
+Thank you for visiting Kinesis Sports Club!
+Support: info@kinesissports.com
+========================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Kinesis_Receipt_${cleanNumber}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div
@@ -97,6 +138,7 @@ export default function ReceiptModal({
 
         {/* Brand Header */}
         <div style={{ textAlign: 'center', borderBottom: '1px dashed var(--border-subtle)', paddingBottom: '1.25rem', marginBottom: '1.25rem' }}>
+          <img src="/logo2.png" alt="Kinesis Sports Club" style={{ height: '42px', objectFit: 'contain', marginBottom: '0.5rem', display: 'block', margin: '0 auto 0.5rem auto' }} />
           <div style={{ fontSize: '0.75rem', letterSpacing: '0.2em', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase' }}>
             KINESIS SPORTS CLUB
           </div>
@@ -257,7 +299,7 @@ export default function ReceiptModal({
         </div>
 
         {/* Actions (Hidden on Print) */}
-        <div className="no-print" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={onClose}
@@ -265,6 +307,15 @@ export default function ReceiptModal({
             style={{ padding: '0.6rem 1.25rem', fontSize: '0.88rem' }}
           >
             Close
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadReceipt}
+            className="btn btn-secondary"
+            style={{ padding: '0.6rem 1.25rem', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+          >
+            <Download size={16} />
+            <span>Download</span>
           </button>
           <button
             type="button"

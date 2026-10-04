@@ -332,8 +332,13 @@ export default function Register({ navigate }) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
       {/* Top Branding */}
       <div style={{ textAlign: 'center', marginBottom: '2rem', cursor: 'pointer' }} onClick={() => navigate('landing')}>
-        <h2 style={{ margin: 0, letterSpacing: '0.08em', color: 'var(--primary)' }}>KINESIS</h2>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Sports Club</span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+          <img src="/logo2.png" alt="Kinesis" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+          <h2 style={{ margin: 0, letterSpacing: '0.08em', color: 'var(--primary)', fontSize: '1.7rem' }}>KINESIS</h2>
+        </div>
+        <div>
+          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 600 }}>Sports Club</span>
+        </div>
       </div>
 
       {step === 1 && (

@@ -7,7 +7,8 @@ import { recordReceptionTransaction, logAudit } from '../../services/clubPlatfor
 import ReceiptModal from '../../components/ReceiptModal.jsx';
 import {
   ConciergeBell, Users, UserPlus, CreditCard, DollarSign, Calendar,
-  CheckCircle2, AlertTriangle, RefreshCw, Search, ArrowRight, Shield, QrCode, Utensils
+  CheckCircle2, AlertTriangle, RefreshCw, Search, ArrowRight, Shield, QrCode, Utensils,
+  Banknote, Check
 } from 'lucide-react';
 
 export default function ReceptionPortal({ navigate }) {
@@ -569,6 +570,48 @@ export default function ReceptionPortal({ navigate }) {
     return matchesSearch && matchesPlan && matchesStatus;
   });
 
+  const pendingCashBookings = bookings.filter(b =>
+    (b.payment_method === 'CASH' && b.payment_status === 'PENDING') ||
+    b.payment_status === 'PENDING'
+  );
+  const pendingCashCount = pendingCashBookings.length;
+
+  const handleConfirmCashPayment = async (booking) => {
+    try {
+      const bId = Number(booking.id);
+      if (supabase) {
+        await supabase.from('bookings').update({ payment_status: 'PAID' }).eq('id', bId);
+      }
+      setBookings(prev => prev.map(b => b.id === bId ? { ...b, payment_status: 'PAID' } : b));
+      setFeedback({ type: 'success', text: `Cash payment of ₹${booking.price || 0} confirmed for Booking #${bId} (${booking.members?.name || 'Customer'})! Marked as PAID.` });
+      logAudit({
+        userName: 'Priya Mehra',
+        role: 'RECEPTION',
+        action: 'Confirm Cash Payment',
+        entity: 'Booking',
+        entityId: bId,
+        details: `Confirmed cash receipt of ₹${booking.price} at reception desk for booking #${bId}`
+      });
+      setActiveReceipt({
+        type: 'COURT_BOOKING',
+        data: {
+          id: bId,
+          receiptNumber: booking.ticket_id || `#KSC-BKG-${String(bId).padStart(4, '0')}`,
+          customerName: booking.members?.name || 'Customer',
+          customerType: booking.members?.user_type === 'WALK_IN' ? 'WALK_IN' : 'MEMBER',
+          club_id: booking.members?.club_id || 'N/A',
+          created_at: new Date().toISOString(),
+          payment_method: 'CASH',
+          payment_status: 'PAID',
+          total: Number(booking.price || 0),
+          details: `${booking.courts?.name || 'Court'} (${booking.booking_date} ${booking.start_time}-${booking.end_time})`
+        }
+      });
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message || 'Failed to confirm cash payment.' });
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       
@@ -676,7 +719,38 @@ export default function ReceptionPortal({ navigate }) {
           Offline Table Booking
         </button>
         <button 
-          onClick={() => setActiveTab('directory')} 
+          onClick={() => setActiveTab('cash-confirmations')}
+          style={{
+            padding: '0.6rem 1.25rem',
+            border: 'none',
+            background: activeTab === 'cash-confirmations' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'cash-confirmations' ? '#fff' : 'var(--text-muted)',
+            borderRadius: 'var(--radius-sm)',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontSize: '0.88rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem'
+          }}
+        >
+          <Banknote size={15} />
+          Cash Confirmations
+          {pendingCashCount > 0 && (
+            <span style={{
+              background: activeTab === 'cash-confirmations' ? '#d4af37' : '#ef4444',
+              color: activeTab === 'cash-confirmations' ? '#162b23' : '#fff',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              padding: '0.1rem 0.45rem',
+              borderRadius: '999px'
+            }}>
+              {pendingCashCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('directory')}
           style={{ padding: '0.6rem 1.25rem', border: 'none', background: activeTab === 'directory' ? 'var(--primary)' : 'transparent', color: activeTab === 'directory' ? '#fff' : 'var(--text-muted)', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem' }}
         >
           Member Directory ({members.length})
@@ -1398,6 +1472,112 @@ export default function ReceptionPortal({ navigate }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* VIEW: CASH PAYMENT CONFIRMATIONS */}
+      {/* ======================================================== */}
+      {activeTab === 'cash-confirmations' && (
+        <div className="card" style={{ padding: '1.75rem', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#b45309', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
+                <Banknote size={16} /> Physical Cash Desk
+              </div>
+              <h2 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-main)' }}>Cash Payment Confirmations</h2>
+              <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                CASH transactions remain in PENDING status until Reception staff confirms physical collection at the desk.
+              </p>
+            </div>
+            <div style={{ background: 'var(--bg-main)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '0.85rem', fontWeight: 700 }}>
+              {pendingCashCount} Payments Awaiting Cash Collection
+            </div>
+          </div>
+
+          {pendingCashBookings.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-subtle)' }}>
+              <CheckCircle2 size={40} color="#10b981" style={{ margin: '0 auto 0.75rem' }} />
+              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.2rem', color: 'var(--text-main)' }}>All Cash Collections Settled</h3>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                There are currently zero pending cash payments awaiting counter verification.
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Ticket / Booking ID</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Customer Name</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Facility & Sport</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Schedule Slot</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Amount Due</th>
+                    <th style={{ padding: '0.75rem 0.5rem' }}>Payment Status</th>
+                    <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Counter Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingCashBookings.map((b) => (
+                    <tr key={b.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>
+                        {b.ticket_id || `#KSC-BKG-${String(b.id).padStart(4, '0')}`}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                        <div style={{ fontWeight: 600 }}>{b.members?.name || 'Walk-In Guest'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Club ID: {b.members?.club_id || 'N/A'} • {b.members?.phone || 'No phone'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                        <div style={{ fontWeight: 600 }}>{b.courts?.name || `Court #${b.court_id}`}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{b.courts?.sport || 'Racquet Sports'}</div>
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                        <div>{b.booking_date}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{b.start_time} - {b.end_time}</div>
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--primary)' }}>
+                        ₹{Number(b.price || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                        <span style={{
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '999px',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: '#dc2626'
+                        }}>
+                          PENDING CASH
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmCashPayment(b)}
+                          className="btn btn-primary"
+                          style={{
+                            padding: '0.45rem 0.9rem',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            background: '#10b981',
+                            borderColor: '#10b981'
+                          }}
+                        >
+                          <Check size={14} />
+                          <span>Confirm Cash Received & Mark PAID</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

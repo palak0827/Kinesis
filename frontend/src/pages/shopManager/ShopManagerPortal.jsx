@@ -60,8 +60,14 @@ export default function ShopManagerPortal({ navigate }) {
                !cat.includes('food') && !cat.includes('mocktail') && !cat.includes('snack') && !cat.includes('nutrition');
       });
 
+      const gearSales = (salesData || []).filter(s => {
+        const cat = (s.products?.category || s.category || '').toLowerCase();
+        return !cat.includes('café') && !cat.includes('cafe') && !cat.includes('drink') &&
+               !cat.includes('food') && !cat.includes('mocktail') && !cat.includes('snack') && !cat.includes('nutrition');
+      });
+
       setProducts(gear);
-      setSales(salesData || []);
+      setSales(gearSales);
 
       const outCount = gear.filter(p => Number(p.stock_quantity) === 0).length;
       const lowCount = gear.filter(p => Number(p.stock_quantity) > 0 && Number(p.stock_quantity) <= Number(p.low_stock_threshold || 5)).length;
@@ -72,7 +78,7 @@ export default function ShopManagerPortal({ navigate }) {
         availableProducts: availCount,
         lowStock: lowCount,
         outOfStock: outCount,
-        todayOrders: revStats?.gearSalesCount || 0,
+        todayOrders: gearSales.length,
         todayRevenue: revStats?.todayGearRevenue || 0
       });
     } catch (err) {

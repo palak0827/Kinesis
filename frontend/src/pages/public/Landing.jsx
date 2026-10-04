@@ -131,23 +131,13 @@ export default function Landing({ navigate }) {
             onClick={() => scrollTo('hero')}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
           >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #162b23 0%, #285444 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#d4af37',
-              fontWeight: 800,
-              fontSize: '1.25rem',
-              boxShadow: '0 4px 10px rgba(22, 43, 35, 0.2)'
-            }}>
-              K
-            </div>
+            <img
+              src="/logo2.png"
+              alt="Kinesis Sports Club"
+              style={{ width: '42px', height: '42px', objectFit: 'contain', flexShrink: 0 }}
+            />
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.04em', color: 'var(--primary)', lineHeight: 1.1 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '0.04em', color: 'var(--primary)', lineHeight: 1.1 }}>
                 KINESIS
               </div>
               <div style={{ fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -828,8 +818,8 @@ export default function Landing({ navigate }) {
       <footer style={{ background: '#0e1c17', color: 'rgba(255,255,255,0.7)', padding: '4rem 1.5rem 2rem', marginTop: 'auto' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '3rem', marginBottom: '3rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#d4af37', color: '#162b23', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>K</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1rem' }}>
+              <img src="/logo2.png" alt="Kinesis" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
               <span style={{ color: '#ffffff', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.05em' }}>KINESIS SPORTS CLUB</span>
             </div>
             <p style={{ fontSize: '0.88rem', lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>

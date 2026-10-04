@@ -29,10 +29,20 @@ export function isMembershipActive(member) {
     return false;
   }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Start date check (membership not yet active if start date is in the future)
+  if (member.start_date) {
+    const start = new Date(member.start_date);
+    start.setHours(0, 0, 0, 0);
+    if (today < start) {
+      return false;
+    }
+  }
+
   // Expiry date check
   if (member.expiry_date) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const expiry = new Date(member.expiry_date);
     expiry.setHours(23, 59, 59, 999);
     if (today > expiry) {
