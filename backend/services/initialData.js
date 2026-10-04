@@ -71,6 +71,7 @@ export const initialMembers = [
   },
   {
     id: 3,
+    club_id: '1000000003',
     name: 'Marcus Vance',
     email: 'marcus.vance@kinesis.club',
     phone: '+1 (555) 456-7823',
@@ -82,6 +83,7 @@ export const initialMembers = [
   },
   {
     id: 4,
+    club_id: '1000000004',
     name: 'Sophia Lin',
     email: 'sophia.lin@kinesis.club',
     phone: '+1 (555) 567-8934',
@@ -93,6 +95,7 @@ export const initialMembers = [
   },
   {
     id: 5,
+    club_id: '1000000005',
     name: 'Liam Gallagher',
     email: 'liam.g@kinesis.club',
     phone: '+1 (555) 678-9045',
@@ -104,6 +107,7 @@ export const initialMembers = [
   },
   {
     id: 6,
+    club_id: '1000000006',
     name: 'Carlos Mendoza',
     email: 'carlos.m@kinesis.club',
     phone: '+1 (555) 789-0156',
@@ -115,6 +119,7 @@ export const initialMembers = [
   },
   {
     id: 7,
+    club_id: '1000000007',
     name: 'Emma Watson',
     email: 'emma.w@kinesis.club',
     phone: '+1 (555) 890-1267',
@@ -126,6 +131,7 @@ export const initialMembers = [
   },
   {
     id: 8,
+    club_id: '1000000008',
     name: 'David Kim',
     email: 'david.kim@kinesis.club',
     phone: '+1 (555) 901-2378',

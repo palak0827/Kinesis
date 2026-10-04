@@ -295,8 +295,13 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
       const finalResult = {
         ...createdOrder,
         items: insertedItems,
+        cafe_order_items: insertedItems,
         members: member ? { id: member.id, name: member.name, email: member.email } : null
       };
+      localStore.cafeOrders.unshift(finalResult);
+      if (insertedItems) {
+        localStore.cafeOrderItems.push(...insertedItems);
+      }
       dispatchOrderCreatedNotifications(createdOrder, preparedItems, member, safePriority);
       return finalResult;
 
@@ -404,7 +409,7 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
 export async function getKitchenOrders() {
   if (shouldUseSupabase()) {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('cafe_orders')
         .select(`
           *,
@@ -418,6 +423,25 @@ export async function getKitchenOrders() {
           )
         `)
         .order('created_at', { ascending: true });
+
+      if (error && (error.code === '42703' || String(error.message).includes('club_id'))) {
+        const retry = await supabase
+          .from('cafe_orders')
+          .select(`
+            *,
+            members (id, name, email),
+            cafe_order_items (
+              id,
+              quantity,
+              unit_price,
+              total,
+              products (id, name, category)
+            )
+          `)
+          .order('created_at', { ascending: true });
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (!error && data) {
         return (data || [])

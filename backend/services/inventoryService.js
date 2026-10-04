@@ -230,28 +230,55 @@ export async function recordSale({ productId, memberId = null, quantity = 1, pay
   if (shouldUseSupabase()) {
     try {
       // Insert sale (Postgres trigger trg_sale_stock_reduction automatically deducts stock)
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('sales')
         .insert([saleRecord])
         .select(`
           *,
           products (id, name, category, price),
-          members (id, club_id, name, email)
+          members (id, name, email)
         `)
         .single();
 
+      if (error && (error.code === 'PGRST204' || error.code === '42703' || String(error.message).includes('payment_method') || String(error.message).includes('club_id'))) {
+        const { payment_method: _pm, pickup_status: _ps, ...cleanSale } = saleRecord;
+        const retry = await supabase
+          .from('sales')
+          .insert([cleanSale])
+          .select(`
+            *,
+            products (id, name, category, price),
+            members (id, name, email)
+          `)
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
+
       if (!error && data) {
+        await supabase.from('products').update({ stock_quantity: newStock }).eq('id', pId);
         const pIndex = localStore.products.findIndex((p) => p.id === pId);
         if (pIndex !== -1) {
           localStore.products[pIndex].stock_quantity = newStock;
         }
+        const finalSale = {
+          ...data,
+          payment_method: paymentMethod || 'CARD',
+          pickup_status: 'PENDING_PICKUP',
+          products: product,
+          members: memberDetails
+        };
+        localStore.sales.unshift(finalSale);
         dispatchSaleNotifications(data, product, qty, total, mId);
         dispatchStockNotifications(product, newStock);
-        return data;
+        return finalSale;
       }
       if (error) throw error;
     } catch (err) {
       console.warn('Supabase recordSale error, fallback to local:', err);
+      try {
+        await supabase.from('products').update({ stock_quantity: newStock }).eq('id', pId);
+      } catch {}
     }
   }
 
@@ -328,14 +355,15 @@ export async function updateSalePickupStatus(saleId, pickupStatus = 'PICKED_UP')
         .select(`
           *,
           products (id, name, category, price),
-          members (id, club_id, name, email)
+          members (id, name, email)
         `)
         .single();
 
       if (!error && data) {
-        if (existingSale) {
-          existingSale.pickup_status = pickupStatus;
-          existingSale.pickup_time = data.pickup_time;
+        const localIdx = localStore.sales.findIndex(s => s.id === numId);
+        if (localIdx !== -1) {
+          localStore.sales[localIdx].pickup_status = pickupStatus;
+          localStore.sales[localIdx].pickup_time = data.pickup_time;
           localStore.saveSales();
         }
         return data;
