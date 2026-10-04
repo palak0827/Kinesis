@@ -258,3 +258,54 @@ export async function deleteMember(id) {
 
   return localStore.members.length < initialLen;
 }
+
+/**
+ * Fetch member/walk-in customer by unique 10-digit Club ID.
+ * Strict validation: exactly 10 numeric digits.
+ */
+export async function getMemberByClubId(clubId) {
+  const cleanId = String(clubId || '').trim();
+
+  if (!cleanId) {
+    throw new Error('Club ID is required.');
+  }
+
+  if (!/^\d{10}$/.test(cleanId)) {
+    throw new Error('Club ID must be exactly 10 numeric digits.');
+  }
+
+  if (shouldUseSupabase()) {
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .select(`
+          *,
+          membership_plans (
+            id,
+            name,
+            court_discount,
+            shop_discount,
+            bar_discount,
+            daily_booking_limit
+          )
+        `)
+        .eq('club_id', cleanId)
+        .maybeSingle();
+
+      if (!error && data) return data;
+      if (error) console.warn('Supabase getMemberByClubId error:', error);
+    } catch (err) {
+      console.warn('Supabase getMemberByClubId error:', err);
+    }
+  }
+
+  // Local fallback
+  const member = localStore.members.find((m) => String(m.club_id) === cleanId);
+  if (!member) return null;
+
+  const plan = localStore.plans.find((p) => p.id === Number(member.plan_id)) || null;
+  return {
+    ...member,
+    membership_plans: plan
+  };
+}

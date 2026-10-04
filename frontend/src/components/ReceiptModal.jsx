@@ -14,15 +14,22 @@ export default function ReceiptModal({
 
   const isCafe = receiptType === 'CAFE_BAR';
   const isMembership = receiptType === 'MEMBERSHIP';
+  const isCourt = receiptType === 'COURT_BOOKING';
+  const isPos = receiptType === 'POS';
 
   const title = isCafe
     ? 'CAFÉ & BAR BILL'
     : isMembership
     ? 'MEMBERSHIP SUBSCRIPTION RECEIPT'
+    : isCourt
+    ? 'COURT RESERVATION RECEIPT'
+    : isPos
+    ? 'FRONT DESK POS RECEIPT'
     : 'GEAR SHOP RECEIPT';
 
   const receiptNumber = data.receiptNumber || (data.id ? `#KSC-REC-${String(data.id).padStart(4, '0')}` : '#KSC-REC-0001');
-  const customerName = data.customerName || data.members?.name || 'Club Member';
+  const customerName = data.customerName || data.members?.name || 'Club Customer';
+  const customerType = data.customerType || data.members?.user_type || (data.members?.plan_id ? 'MEMBER' : 'MEMBER');
   const dateStr = data.created_at
     ? new Date(data.created_at).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -38,6 +45,7 @@ export default function ReceiptModal({
   const paymentMethod = data.payment_method || data.paymentMethod || 'CARD';
   const paymentStatus = data.payment_status || data.paymentStatus || 'PAID';
   const orderStatus = data.status || 'COMPLETED';
+  const clubId = data.club_id || data.clubId || data.members?.club_id || 'N/A';
 
   return (
     <div
@@ -104,18 +112,27 @@ export default function ReceiptModal({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
           <div>
             <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase' }}>Customer</span>
-            <strong style={{ fontSize: '0.95rem' }}>{customerName}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <strong style={{ fontSize: '0.95rem' }}>{customerName}</strong>
+              <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', background: customerType === 'MEMBER' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)', color: customerType === 'MEMBER' ? '#10b981' : '#3b82f6', fontWeight: 700 }}>
+                {customerType}
+              </span>
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase' }}>Date & Time</span>
             <span>{dateStr} • {timeStr}</span>
           </div>
           <div>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase' }}>Club ID</span>
+            <strong style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}>{clubId}</strong>
+          </div>
+          <div style={{ textAlign: 'right' }}>
             <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase' }}>Payment Mode</span>
             <strong style={{ color: 'var(--primary)' }}>{paymentMethod}</strong>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem', textTransform: 'uppercase' }}>Payment Status</span>
+          <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Payment Status:</span>
             <span style={{ color: paymentStatus === 'PAID' ? '#10b981' : '#f59e0b', fontWeight: 700 }}>
               {paymentStatus === 'PAID' ? 'PAID' : 'PENDING (PAY AT COUNTER)'}
             </span>
@@ -227,6 +244,16 @@ export default function ReceiptModal({
               ₹{Number(data.total).toFixed(2)}
             </span>
           </div>
+        </div>
+
+        {/* Official Brand Footer */}
+        <div style={{ textAlign: 'center', margin: '1.25rem 0 0.75rem 0', paddingTop: '1rem', borderTop: '1px dashed var(--border-subtle)', color: 'var(--text-muted)' }}>
+          <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.04em', fontSize: '0.82rem', textTransform: 'uppercase' }}>
+            Thank you for choosing Kinesis Sports Club!
+          </p>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Have a healthy, energetic & active day.
+          </p>
         </div>
 
         {/* Actions (Hidden on Print) */}

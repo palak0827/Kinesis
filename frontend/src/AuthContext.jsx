@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Restore local session on initial load or browser refresh
-  useEffect(() => {
-    async function restoreSession() {
+  const restoreSession = async () => {
+    try {
       const session = getStoredSession();
 
       if (!session) {
@@ -65,20 +65,24 @@ export const AuthProvider = ({ children }) => {
         }
 
         const member = await getCurrentMember(supabase);
-        if (member) {
+        // Validate user record exists and account is active
+        if (member && (!member.status || member.status.toLowerCase() === 'active')) {
+          const validatedRole = member.role === 'admin' ? 'ADMIN' : 'MEMBER';
           setUser({
             id: member.id,
             email: member.email,
             name: member.name,
             role: member.role || 'member'
           });
-          setRole(member.role === 'admin' ? 'ADMIN' : 'MEMBER');
+          setRole(validatedRole);
           setMemberProfile(member);
         } else {
+          // Member deleted or inactive/suspended
           clearSession();
           setUser(null);
           setRole(null);
           setMemberProfile(null);
+          sessionStorage.setItem('kinesis_auth_message', 'Session expired or member account inactive. Please log in again.');
         }
         setLoading(false);
         return;
@@ -86,65 +90,113 @@ export const AuthProvider = ({ children }) => {
 
       // 2. STAFF SESSION (Re-verify role & active status from database)
       if (session.type === 'staff') {
-        try {
-          if (session.email === ADMIN_CREDENTIALS.email || session.role === 'ADMIN') {
-            setUser({
-              id: 'admin',
-              email: ADMIN_CREDENTIALS.email,
-              name: ADMIN_CREDENTIALS.name,
-              role: 'admin',
-              department: 'Operations'
-            });
-            setRole('ADMIN');
-            setMemberProfile(null);
-            setLoading(false);
-            return;
-          }
+        // Validate master administrator credentials
+        if (session.email && session.email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase()) {
+          setUser({
+            id: 'admin',
+            email: ADMIN_CREDENTIALS.email,
+            name: ADMIN_CREDENTIALS.name,
+            role: 'admin',
+            department: 'Operations'
+          });
+          setRole('ADMIN');
+          setMemberProfile(null);
+          setLoading(false);
+          return;
+        }
 
-          // Check live staff roster to ensure role hasn't changed or been deactivated
-          const staffList = await getStaffList();
-          const staff = staffList.find(s => String(s.id) === String(session.staffId) || s.email.toLowerCase() === (session.email || '').toLowerCase());
+        // Check live staff roster to ensure account exists, is active, and fetch CURRENT role
+        const staffList = await getStaffList();
+        const staff = staffList.find(s => 
+          String(s.id) === String(session.staffId) || 
+          (s.email && session.email && s.email.toLowerCase() === session.email.toLowerCase())
+        );
 
-          if (staff && staff.employment_status === 'ACTIVE') {
-            const currentRole = normalizeStaffRole(staff.role);
-            if (currentRole) {
-              setUser({
-                id: staff.id,
-                email: staff.email,
-                name: staff.name,
-                role: currentRole.toLowerCase(),
-                department: staff.department
-              });
-              setRole(currentRole);
-              setMemberProfile(null);
-              setLoading(false);
-              return;
-            }
-          }
-
-          // Inactive or unassigned role -> clear session
+        if (!staff) {
+          // Staff record deleted/missing
           clearSession();
           setUser(null);
           setRole(null);
           setMemberProfile(null);
-        } catch {
-          // Fallback to cached session if network error
-          setUser({
-            id: session.staffId,
-            email: session.email,
-            name: session.name,
-            role: (session.role || '').toLowerCase(),
-            department: session.department
-          });
-          setRole(session.role);
-          setMemberProfile(null);
+          sessionStorage.setItem('kinesis_auth_message', 'Session expired. Staff record not found.');
+          setLoading(false);
+          return;
         }
-      }
 
+        // Check if staff account is active
+        const isStatusActive = staff.employment_status === 'ACTIVE' || staff.status === 'active' || staff.is_active === true;
+        const isStatusInactive = staff.employment_status === 'INACTIVE' || staff.status === 'inactive' || staff.active === false || staff.is_active === false;
+
+        if (!isStatusActive || isStatusInactive) {
+          clearSession();
+          setUser(null);
+          setRole(null);
+          setMemberProfile(null);
+          sessionStorage.setItem('kinesis_auth_message', 'Access Denied: Your staff account is deactivated. Please contact the administrator.');
+          setLoading(false);
+          return;
+        }
+
+        // Check CURRENT role from the live database record
+        const currentRole = normalizeStaffRole(staff.role);
+        if (!currentRole) {
+          clearSession();
+          setUser(null);
+          setRole(null);
+          setMemberProfile(null);
+          sessionStorage.setItem('kinesis_auth_message', 'Access Not Assigned: Your account has no active role assigned. Please contact the administrator.');
+          setLoading(false);
+          return;
+        }
+
+        // Restore validated authenticated state with CURRENT role
+        setUser({
+          id: staff.id,
+          email: staff.email,
+          name: staff.name,
+          role: currentRole.toLowerCase(),
+          department: staff.department
+        });
+        setRole(currentRole);
+        setMemberProfile(null);
+
+        // Keep persisted session in sync with the latest database role
+        createStaffSession({
+          staffId: staff.id,
+          role: currentRole,
+          department: staff.department,
+          name: staff.name,
+          email: staff.email
+        });
+      } else {
+        // Unknown session type
+        clearSession();
+        setUser(null);
+        setRole(null);
+        setMemberProfile(null);
+      }
+    } catch (err) {
+      console.error('Error during session restoration:', err);
+      clearSession();
+      setUser(null);
+      setRole(null);
+      setMemberProfile(null);
+    } finally {
       setLoading(false);
     }
+  };
 
+  useEffect(() => {
     restoreSession();
+
+    // Listen for storage changes across browser tabs (e.g. role change or deactivation in another tab)
+    const handleStorageChange = (e) => {
+      if (e.key === 'kinesis_session' || e.key === 'kinesis_staff') {
+        restoreSession();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   /**
@@ -317,23 +369,52 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Database connection is not available.');
     }
 
+    // Server-side validation
+    const cleanName = (name || '').trim();
+    if (!cleanName) throw new Error('Full name is required.');
+    if (/\d/.test(cleanName)) throw new Error('Name cannot contain numbers.');
+    if (/[^A-Za-z\s'-]/.test(cleanName)) throw new Error('Name contains unsupported special characters.');
+    if (cleanName.length < 2) throw new Error('Name must be at least 2 characters long.');
+    if (cleanName.length > 70) throw new Error('Name cannot exceed 70 characters.');
+
     const normalizedEmail = (email || '').trim().toLowerCase();
+    const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*\.(com|ac\.in)$/i;
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      throw new Error('Invalid email address. Only valid .com or .ac.in domains are accepted.');
+    }
+
+    const cleanPhone = (phone || '').trim();
+    const PHONE_REGEX = /^\d{10}$/;
+    if (!PHONE_REGEX.test(cleanPhone)) {
+      throw new Error('Phone number must contain exactly 10 digits.');
+    }
+
+    if (!password || password.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
+    }
+
     const isWalkIn = user_type === 'WALK_IN' || !plan_id;
 
-    // Check email uniqueness
-    const { data: existing, error: checkError } = await supabase
-      .from('members')
-      .select('id')
-      .eq('email', normalizedEmail)
-      .maybeSingle();
+    // Check email & phone uniqueness
+    const [
+      { data: existingEmail, error: checkError },
+      { data: existingPhone, error: phoneError }
+    ] = await Promise.all([
+      supabase.from('members').select('id').eq('email', normalizedEmail).maybeSingle(),
+      supabase.from('members').select('id').eq('phone', cleanPhone).maybeSingle()
+    ]);
 
-    if (checkError) {
-      console.error('Email uniqueness check error:', checkError);
+    if (checkError || phoneError) {
+      console.error('Credential uniqueness check error:', checkError || phoneError);
       throw new Error('Something went wrong. Please try again.');
     }
 
-    if (existing) {
+    if (existingEmail) {
       throw new Error('An account with this email already exists.');
+    }
+
+    if (existingPhone) {
+      throw new Error('An account with this phone number already exists.');
     }
 
     const startDate = new Date().toISOString().split('T')[0];
@@ -344,11 +425,13 @@ export const AuthProvider = ({ children }) => {
       exp.setMonth(exp.getMonth() + Number(durationMonths || 12));
     }
     const expiryDate = exp.toISOString().split('T')[0];
+    const generatedClubId = String(Math.floor(1000000000 + Math.random() * 9000000000));
 
     const newRecord = {
-      name: name.trim(),
+      club_id: generatedClubId,
+      name: cleanName,
       email: normalizedEmail,
-      phone: phone ? phone.trim() : '',
+      phone: cleanPhone,
       plan_id: isWalkIn ? null : Number(plan_id),
       user_type: isWalkIn ? 'WALK_IN' : 'MEMBER',
       password: password,
@@ -446,6 +529,10 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setRole(null);
     setMemberProfile(null);
+    try {
+      sessionStorage.removeItem('kinesis_redirect_after_login');
+      sessionStorage.removeItem('kinesis_auth_message');
+    } catch {}
   };
 
   return (
@@ -458,6 +545,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         refreshMemberProfile,
+        revalidateSession: restoreSession,
         logout
       }}
     >

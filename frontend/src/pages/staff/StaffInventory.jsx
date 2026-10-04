@@ -94,7 +94,7 @@ export default function StaffInventory() {
         availability_status: finalAvailability
       };
 
-      let { data, error } = await supabase
+      let { data: _data, error } = await supabase
         .from('products')
         .update(updatePayload)
         .eq('id', editingProduct.id)
@@ -108,7 +108,7 @@ export default function StaffInventory() {
           .eq('id', editingProduct.id)
           .select();
         if (fallbackRes.error) throw fallbackRes.error;
-        data = fallbackRes.data;
+        _data = fallbackRes.data;
       } else if (error) {
         throw error;
       }

@@ -21,6 +21,39 @@ export async function getCourts() {
 }
 
 /**
+ * Update court operational status (e.g. 'available' | 'maintenance')
+ */
+export async function updateCourtStatus(courtId, status) {
+  const cId = Number(courtId);
+  const targetStatus = String(status).toLowerCase();
+
+  if (shouldUseSupabase()) {
+    try {
+      const { data, error } = await supabase
+        .from('courts')
+        .update({ status: targetStatus })
+        .eq('id', cId)
+        .select()
+        .single();
+      if (!error && data) {
+        const localCourt = localStore.courts.find(c => c.id === cId);
+        if (localCourt) localCourt.status = targetStatus;
+        return data;
+      }
+    } catch (e) {
+      console.warn('Supabase updateCourtStatus fallback to localStore:', e);
+    }
+  }
+
+  const court = localStore.courts.find(c => c.id === cId);
+  if (court) {
+    court.status = targetStatus;
+    return court;
+  }
+  throw new Error(`Court #${cId} not found.`);
+}
+
+/**
  * Fetch all bookings with optional filters (e.g. court_id, status, member_id, date)
  */
 export async function getBookings(filters = {}) {
@@ -315,7 +348,7 @@ export async function calculateBookingPrice(courtId, memberId, durationMinutes =
 export async function createBooking(params = {}) {
   const memberId = params.memberId ?? params.member_id;
   const courtId = params.courtId ?? params.court_id;
-  const bookingDate = params.bookingDate ?? params.booking_date;
+  const bookingDate = params.bookingDate ?? params.booking_date ?? params.date;
   const startTime = params.startTime ?? params.start_time;
   const providedEndTime = params.endTime ?? params.end_time;
   const paymentMethod = params.paymentMethod ?? params.payment_method ?? 'UPI';
@@ -328,6 +361,39 @@ export async function createBooking(params = {}) {
     throw new Error('Member, Court, Booking Date, and Start Time are required.');
   }
 
+  // 1. Date format & validity check
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+    throw new Error('Invalid booking date format. Use YYYY-MM-DD.');
+  }
+  const dateObj = new Date(bookingDate);
+  if (isNaN(dateObj.getTime())) {
+    throw new Error('Invalid booking date.');
+  }
+
+  // 2. Past date check
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (bookingDate < todayStr) {
+    throw new Error('Cannot book a court for a past date.');
+  }
+
+  // 3. Time format & operating hours check (06:00 to 23:00)
+  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(startTime)) {
+    throw new Error('Invalid start time format. Use HH:mm.');
+  }
+  const startMins = timeToMinutes(startTime);
+  if (startMins < 360 || startMins >= 1380) { // 06:00 to 23:00
+    throw new Error('Court bookings are only permitted during club operating hours (06:00 to 23:00).');
+  }
+
+  // If booking for today, cannot book an elapsed or past time slot
+  if (bookingDate === todayStr) {
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    if (startMins < currentMins) {
+      throw new Error('Cannot book a court for an elapsed or past time slot.');
+    }
+  }
+
   // Calculate 30-min or provided end time
   let endTime = providedEndTime;
   if (!endTime) {
@@ -338,9 +404,14 @@ export async function createBooking(params = {}) {
     endTime = `${endH}:${endM}`;
   }
 
-  const startMins = timeToMinutes(startTime);
   const endMins = timeToMinutes(endTime);
-  const bookingDuration = Math.max(30, endMins - startMins);
+  if (endMins <= startMins) {
+    throw new Error('End time must be after start time.');
+  }
+  const bookingDuration = endMins - startMins;
+  if (bookingDuration < 30 || bookingDuration > 120 || bookingDuration % 30 !== 0) {
+    throw new Error('Booking duration must be in 30-minute intervals between 30 and 120 minutes.');
+  }
 
   // Rule 2 & 8: Check daily limit (Walk-In = 1, Member = plan limit)
   const limitCheck = await checkMemberDailyLimit(mId, bookingDate);

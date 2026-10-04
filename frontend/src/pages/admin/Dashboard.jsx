@@ -247,7 +247,7 @@ export default function AdminDashboard({ navigate }) {
       }
     }
     fetchDashboard();
-  }, []);
+  }, [revenueFilter]);
 
   const handleRevenueFilterChange = async (newFilter) => {
     setRevenueFilter(newFilter);

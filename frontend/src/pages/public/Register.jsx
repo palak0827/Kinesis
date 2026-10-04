@@ -4,21 +4,19 @@ import { supabase } from '@backend/services/supabaseClient.js';
 import { Check, Shield, Star, Award, User, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { MEMBERSHIP_DURATIONS, calculateMembershipPrice } from '../../utils/pricingEngine.js';
 
-export function calculateAge(dobString) {
-  if (!dobString) return 0;
-  const dob = new Date(dobString);
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
-}
+import {
+  EMAIL_REGEX,
+  PHONE_REGEX,
+  calculateAge,
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateDob,
+  validatePassword,
+  validateConfirm
+} from '../../utils/registrationValidation.js';
 
-// Anchored strict email & 10-digit phone regex validation
-const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.(?:com|ac\.in)$/i;
-const PHONE_REGEX = /^\d{10}$/;
+export { calculateAge, EMAIL_REGEX, PHONE_REGEX, validateName, validateEmail, validatePhone, validateDob, validatePassword, validateConfirm };
 
 export default function Register({ navigate }) {
   const { register } = useAuth();
@@ -55,7 +53,8 @@ export default function Register({ navigate }) {
   const handleNameChange = (e) => {
     const val = e.target.value;
     setFormData((prev) => ({ ...prev, name: val }));
-    if (fieldErrors.name && val.trim()) {
+    const nameErr = validateName(val);
+    if (!nameErr && fieldErrors.name) {
       setFieldErrors((prev) => {
         const next = { ...prev };
         delete next.name;
@@ -67,7 +66,8 @@ export default function Register({ navigate }) {
   const handleEmailChange = (e) => {
     const val = e.target.value;
     setFormData((prev) => ({ ...prev, email: val }));
-    if (fieldErrors.email && EMAIL_REGEX.test(val.trim())) {
+    const emailErr = validateEmail(val);
+    if (!emailErr && fieldErrors.email) {
       setFieldErrors((prev) => {
         const next = { ...prev };
         delete next.email;
@@ -79,7 +79,8 @@ export default function Register({ navigate }) {
   const handlePhoneChange = (e) => {
     const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
     setFormData((prev) => ({ ...prev, phone: digitsOnly }));
-    if (fieldErrors.phone && PHONE_REGEX.test(digitsOnly)) {
+    const phoneErr = validatePhone(digitsOnly);
+    if (!phoneErr && fieldErrors.phone) {
       setFieldErrors((prev) => {
         const next = { ...prev };
         delete next.phone;
@@ -91,7 +92,8 @@ export default function Register({ navigate }) {
   const handleDobChange = (e) => {
     const val = e.target.value;
     setFormData((prev) => ({ ...prev, dob: val }));
-    if (fieldErrors.dob && val) {
+    const dobErr = validateDob(val);
+    if (!dobErr && fieldErrors.dob) {
       setFieldErrors((prev) => {
         const next = { ...prev };
         delete next.dob;
@@ -135,37 +137,23 @@ export default function Register({ navigate }) {
   const validateStepOne = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Full name is required.';
-    }
+    const nameErr = validateName(formData.name);
+    if (nameErr) newErrors.name = nameErr;
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email address is required.';
-    } else if (!EMAIL_REGEX.test(formData.email.trim())) {
-      newErrors.email = 'Invalid email address. Use a valid .com or .ac.in email.';
-    }
+    const emailErr = validateEmail(formData.email);
+    if (emailErr) newErrors.email = emailErr;
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required.';
-    } else if (!PHONE_REGEX.test(formData.phone.trim())) {
-      newErrors.phone = 'Phone number must contain exactly 10 digits.';
-    }
+    const phoneErr = validatePhone(formData.phone);
+    if (phoneErr) newErrors.phone = phoneErr;
 
-    if (!formData.dob) {
-      newErrors.dob = 'Date of birth is required.';
-    }
+    const dobErr = validateDob(formData.dob);
+    if (dobErr) newErrors.dob = dobErr;
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required.';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long.';
-    }
+    const passErr = validatePassword(formData.password);
+    if (passErr) newErrors.password = passErr;
 
-    if (!formData.confirm) {
-      newErrors.confirm = 'Please confirm your password.';
-    } else if (formData.password !== formData.confirm) {
-      newErrors.confirm = 'Passwords do not match.';
-    }
+    const confErr = validateConfirm(formData.password, formData.confirm);
+    if (confErr) newErrors.confirm = confErr;
 
     setFieldErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -208,23 +196,42 @@ export default function Register({ navigate }) {
     setLoading(true);
 
     try {
-      // Email uniqueness validation
+      // Email & Phone uniqueness validation
       if (supabase) {
-        const { data: existing, error: checkError } = await supabase
-          .from('members')
-          .select('id')
-          .eq('email', formData.email.trim().toLowerCase())
-          .maybeSingle();
+        const [
+          { data: existingEmail, error: checkError },
+          { data: existingPhone, error: phoneError }
+        ] = await Promise.all([
+          supabase
+            .from('members')
+            .select('id')
+            .eq('email', formData.email.trim().toLowerCase())
+            .maybeSingle(),
+          supabase
+            .from('members')
+            .select('id')
+            .eq('phone', formData.phone.trim())
+            .maybeSingle()
+        ]);
 
-        if (checkError) {
-          console.error(checkError);
-          throw new Error('Something went wrong. Please try again.');
+        if (checkError || phoneError) {
+          console.error(checkError || phoneError);
+          throw new Error('Something went wrong checking credentials. Please try again.');
         }
 
-        if (existing) {
+        if (existingEmail) {
           setFieldErrors((prev) => ({
             ...prev,
             email: 'An account with this email already exists.'
+          }));
+          setLoading(false);
+          return;
+        }
+
+        if (existingPhone) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            phone: 'An account with this phone number already exists.'
           }));
           setLoading(false);
           return;

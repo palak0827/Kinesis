@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCourts, getBookings, cancelBooking } from '@backend/services/bookingService.js';
+import { getCourts, getBookings, cancelBooking, updateCourtStatus } from '@backend/services/bookingService.js';
 import { getCourtRevenueStats } from '@backend/services/revenueService.js';
 import { supabase } from '@backend/services/supabaseClient.js';
 import { verifyAndCheckInTicket, logAudit } from '../../services/clubPlatformService.js';
@@ -76,14 +76,12 @@ export default function CourtManagerPortal({ navigate }) {
   const handleToggleMaintenance = async (courtId, currentStatus) => {
     const newStatus = currentStatus === 'maintenance' ? 'available' : 'maintenance';
     try {
-      if (supabase) {
-        await supabase.from('courts').update({ status: newStatus }).eq('id', courtId);
-      }
+      await updateCourtStatus(courtId, newStatus);
       setFeedback({ type: 'success', text: `Court status updated to ${newStatus}.` });
       logAudit({ userName: 'Vikramaditya Rao', role: 'COURT_MANAGER', action: 'Court Status Updated', entity: 'Court', entityId: courtId, details: `Status set to ${newStatus}` });
       await loadCourtData();
-    } catch (e) {
-      setFeedback({ type: 'error', text: 'Failed updating court status.' });
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message || 'Failed updating court status.' });
     }
   };
 

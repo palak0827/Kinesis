@@ -41,82 +41,25 @@ import StaffDashboard from './pages/staff/StaffDashboard.jsx';
 import StaffInventory from './pages/staff/StaffInventory.jsx';
 import StaffTables from './pages/staff/StaffTables.jsx';
 
-const MEMBER_ROUTES = ['home', 'book', 'bookings', 'membership', 'shop', 'cafe-orders', 'purchase-history', 'profile'];
-const RESTAURANT_ROUTES = ['restaurant-dashboard'];
-const BAR_ROUTES = ['bar-dashboard'];
-const SHOP_ROUTES = ['shop-dashboard'];
-const COURT_ROUTES = ['court-dashboard'];
-const STAFF_ROUTES = ['staff-dashboard', 'staff-inventory', 'staff-tables'];
-const RECEPTION_ROUTES = ['reception-dashboard'];
-const ADMIN_ROUTES = [
-  'admin-dashboard', 'admin-analytics', 'admin-operations', 'admin-members',
-  'admin-courts', 'admin-inventory', 'admin-tables', 'admin-kitchen', 'admin-offers'
-];
-
-function getRouteFromPath(pathname) {
-  const p = (pathname || '').toLowerCase().replace(/\/$/, '');
-  if (p === '' || p === '/') return 'landing';
-  if (p === '/login') return 'login';
-  if (p === '/register') return 'register';
-  if (p === '/forgot-password') return 'forgot-password';
-  if (p === '/reset-password') return 'reset-password';
-
-  // Member Routes
-  if (p === '/member' || p === '/home') return 'home';
-  if (p === '/book') return 'book';
-  if (p === '/bookings') return 'bookings';
-  if (p === '/membership') return 'membership';
-  if (p === '/shop') return 'shop';
-  if (p === '/cafe-orders' || p === '/member/cafe-orders') return 'cafe-orders';
-  if (p === '/purchase-history' || p === '/purchases') return 'purchase-history';
-  if (p === '/profile') return 'profile';
-
-  // Dedicated Portals
-  if (p === '/restaurant' || p === '/restaurant-dashboard') return 'restaurant-dashboard';
-  if (p === '/bar' || p === '/bar-dashboard') return 'bar-dashboard';
-  if (p === '/shop-manager' || p === '/shop-dashboard') return 'shop-dashboard';
-  if (p === '/court-manager' || p === '/court-dashboard') return 'court-dashboard';
-  if (p === '/reception' || p === '/reception-dashboard') return 'reception-dashboard';
-  
-  // Staff Routes
-  if (p === '/staff' || p === '/staff-dashboard' || p === '/staff/dashboard') return 'staff-dashboard';
-  if (p === '/staff/inventory' || p === '/staff-inventory') return 'staff-inventory';
-  if (p === '/staff/tables' || p === '/staff-tables') return 'staff-tables';
-
-  // Admin Routes
-  if (p === '/admin' || p === '/admin-dashboard') return 'admin-dashboard';
-  if (p === '/admin/analytics' || p === '/admin-analytics') return 'admin-analytics';
-  if (p === '/admin/courts' || p === '/admin-courts') return 'admin-courts';
-  if (p === '/admin/inventory' || p === '/admin-inventory') return 'admin-inventory';
-  if (p === '/admin/operations' || p === '/admin-operations') return 'admin-operations';
-  if (p === '/admin/tables' || p === '/admin-tables') return 'admin-tables';
-  if (p === '/admin/kitchen' || p === '/admin-kitchen') return 'admin-kitchen';
-  if (p === '/admin/members' || p === '/admin-members') return 'admin-members';
-  if (p === '/admin/offers' || p === '/admin-offers') return 'admin-offers';
-
-  return 'landing';
-}
-
-function getPathFromRoute(r) {
-  if (r === 'landing') return '/';
-  if (r === 'home') return '/member';
-  if (r === 'restaurant-dashboard') return '/restaurant';
-  if (r === 'bar-dashboard') return '/bar';
-  if (r === 'shop-dashboard') return '/shop-manager';
-  if (r === 'court-dashboard') return '/court-manager';
-  if (r === 'reception-dashboard') return '/reception';
-  if (r === 'staff-dashboard') return '/staff';
-  if (r === 'staff-inventory') return '/staff/inventory';
-  if (r === 'staff-tables') return '/staff/tables';
-  if (r === 'admin-dashboard') return '/admin';
-  if (r === 'admin-analytics') return '/admin/analytics';
-  if (r === 'admin-operations') return '/admin/operations';
-  if (r === 'admin-tables') return '/admin/tables';
-  if (r === 'admin-kitchen') return '/admin/kitchen';
-  if (r === 'admin-members') return '/admin/members';
-  if (r === 'admin-offers') return '/admin/offers';
-  return `/${r}`;
-}
+import AccessDenied from './components/AccessDenied.jsx';
+import {
+  ROLES,
+  PUBLIC_ROUTES,
+  MEMBER_ROUTES,
+  RESTAURANT_ROUTES,
+  BAR_ROUTES,
+  SHOP_ROUTES,
+  COURT_ROUTES,
+  STAFF_ROUTES,
+  RECEPTION_ROUTES,
+  ADMIN_ROUTES,
+  isPublicRoute,
+  isProtectedRoute,
+  isRouteAuthorized,
+  getDefaultRouteForRole,
+  getRouteFromPath,
+  getPathFromRoute
+} from './utils/routeSecurity.js';
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(localStorage.getItem('kinesis_theme') || 'light');
@@ -240,98 +183,71 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Centralized, strict role guards preventing cross-role access
+  // Centralized, strict role guards preventing unauthorized or unauthenticated access
   useEffect(() => {
     if (loading) return;
 
-    const path = window.location.pathname.toLowerCase();
-    const currentRole = (role || '').toUpperCase();
-
     // 1. Unauthenticated users cannot access private portals
     if (!user) {
-      const isPrivate = (
-        MEMBER_ROUTES.includes(route) ||
-        RESTAURANT_ROUTES.includes(route) ||
-        BAR_ROUTES.includes(route) ||
-        SHOP_ROUTES.includes(route) ||
-        COURT_ROUTES.includes(route) ||
-        STAFF_ROUTES.includes(route) ||
-        RECEPTION_ROUTES.includes(route) ||
-        ADMIN_ROUTES.includes(route) ||
-        path.startsWith('/member') ||
-        path.startsWith('/restaurant') ||
-        path.startsWith('/bar') ||
-        path.startsWith('/shop-manager') ||
-        path.startsWith('/court-manager') ||
-        path.startsWith('/reception') ||
-        path.startsWith('/staff') ||
-        path.startsWith('/admin')
-      );
-      if (isPrivate) {
+      if (isProtectedRoute(route)) {
+        try {
+          sessionStorage.setItem('kinesis_redirect_after_login', window.location.pathname);
+          if (!sessionStorage.getItem('kinesis_auth_message')) {
+            sessionStorage.setItem('kinesis_auth_message', 'Login Required: Please sign in to access this portal.');
+          }
+        } catch {}
         navigate('login', true);
       }
       return;
     }
 
-    // 2. Role-specific route boundaries (Admin has superuser privilege across all dashboards)
-    if (currentRole === 'ADMIN') {
-      if (route === 'login' || route === 'register') {
-        navigate('admin-dashboard', true);
-      }
-      return;
-    }
-
-    if (currentRole === 'MEMBER') {
-      const isIllegal = (
-        RESTAURANT_ROUTES.includes(route) ||
-        BAR_ROUTES.includes(route) ||
-        SHOP_ROUTES.includes(route) ||
-        COURT_ROUTES.includes(route) ||
-        STAFF_ROUTES.includes(route) ||
-        RECEPTION_ROUTES.includes(route) ||
-        ADMIN_ROUTES.includes(route) ||
-        path.startsWith('/restaurant') ||
-        path.startsWith('/bar') ||
-        path.startsWith('/shop-manager') ||
-        path.startsWith('/court-manager') ||
-        path.startsWith('/reception') ||
-        path.startsWith('/staff') ||
-        path.startsWith('/admin')
-      );
-      if (isIllegal || route === 'login' || route === 'register') {
-        navigate('home', true);
-      }
-    } else if (currentRole === 'RESTAURANT_MANAGER') {
-      if (!RESTAURANT_ROUTES.includes(route)) {
-        navigate('restaurant-dashboard', true);
-      }
-    } else if (currentRole === 'BAR_MANAGER') {
-      if (!BAR_ROUTES.includes(route)) {
-        navigate('bar-dashboard', true);
-      }
-    } else if (currentRole === 'SHOP_MANAGER') {
-      if (!SHOP_ROUTES.includes(route)) {
-        navigate('shop-dashboard', true);
-      }
-    } else if (currentRole === 'COURT_MANAGER') {
-      if (!COURT_ROUTES.includes(route)) {
-        navigate('court-dashboard', true);
-      }
-    } else if (currentRole === 'STAFF_MANAGER' || currentRole === 'STAFF') {
-      if (!STAFF_ROUTES.includes(route)) {
-        navigate('staff-dashboard', true);
-      }
-    } else if (currentRole === 'RECEPTION') {
-      if (!RECEPTION_ROUTES.includes(route)) {
-        navigate('reception-dashboard', true);
-      }
+    // 2. Authenticated users attempting login/register are redirected to their authorized dashboard
+    if (route === 'login' || route === 'register') {
+      const defaultRoute = getDefaultRouteForRole(role);
+      navigate(defaultRoute, true);
     }
   }, [user, role, loading, route]);
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)', color: 'var(--text-muted)' }}>
-        Loading Kinesis Sports Club...
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-main)',
+        color: 'var(--text-main)',
+        gap: '1.25rem'
+      }}>
+        <div style={{
+          width: '52px',
+          height: '52px',
+          borderRadius: '14px',
+          background: 'var(--primary)',
+          color: '#d4af37',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 800,
+          fontSize: '1.6rem',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+        }}>
+          K
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{
+            width: '20px',
+            height: '20px',
+            border: '2.5px solid var(--border-subtle)',
+            borderTopColor: 'var(--primary)',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+            Checking session & permissions...
+          </span>
+        </div>
       </div>
     );
   }
@@ -534,9 +450,9 @@ export default function App() {
       <div style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
         <h2 style={{ margin: '0 0 2rem 0', color: '#b45309', cursor: 'pointer' }} onClick={() => navigate('staff-dashboard')}>
           KINESIS<br/>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Staff / HR Portal</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Personal Staff & HR</span>
         </h2>
-        <SidebarButton path="staff-dashboard" label="Staff, Shifts & Leaves" active={route === 'staff-dashboard'} />
+        <SidebarButton path="staff-dashboard" label="Personal Staff Hub" active={route === 'staff-dashboard'} />
         <SidebarButton path="staff-inventory" label="Inventory Overview" active={route === 'staff-inventory'} />
         <SidebarButton path="staff-tables" label="Café Tables" active={route === 'staff-tables'} />
         <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
@@ -545,11 +461,11 @@ export default function App() {
         </div>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <PortalHeader title="Staff & HR Operations" user={user} role={role} />
+        <PortalHeader title="Personal Staff & HR Hub" user={user} role={role} />
         <div style={{ flex: 1, padding: '2rem 3rem', overflowY: 'auto' }}>
           {route === 'staff-inventory' ? <StaffInventory navigate={navigate} /> :
            route === 'staff-tables' ? <StaffTables navigate={navigate} /> :
-           <StaffManagerPortal navigate={navigate} />}
+           <StaffDashboard user={user} role={role} navigate={navigate} />}
         </div>
       </div>
     </div>
@@ -659,8 +575,27 @@ export default function App() {
   };
 
 
-  // If unauthenticated, show public pages
+  // 1. Unauthenticated users: strictly block all protected routes
   if (!user) {
+    if (isProtectedRoute(route)) {
+      try {
+        sessionStorage.setItem('kinesis_redirect_after_login', window.location.pathname);
+        if (!sessionStorage.getItem('kinesis_auth_message')) {
+          sessionStorage.setItem('kinesis_auth_message', 'Login Required: Please sign in to access this portal.');
+        }
+        window.history.replaceState({}, '', '/login');
+      } catch {}
+
+      return (
+        <>
+          <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 110 }}>
+            <ThemeToggle />
+          </div>
+          <Login navigate={navigate} />
+        </>
+      );
+    }
+
     return (
       <>
         <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 110 }}>
@@ -671,7 +606,43 @@ export default function App() {
     );
   }
 
-  // Role-based views for the 8 authorized roles
+  // 2. Authenticated users: if visiting login/register, redirect to authorized dashboard
+  if (route === 'login' || route === 'register') {
+    const defaultRoute = getDefaultRouteForRole(role);
+    window.history.replaceState({}, '', getPathFromRoute(defaultRoute));
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+        Redirecting to authorized dashboard...
+      </div>
+    );
+  }
+
+  // 3. Authenticated users visiting public landing
+  if (route === 'landing') {
+    return (
+      <>
+        <div style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 110 }}>
+          <ThemeToggle />
+        </div>
+        {renderPublic()}
+      </>
+    );
+  }
+
+  // 4. Role Authorization Guard: Verify CURRENT role has permission for the requested route
+  if (!isRouteAuthorized(role, route)) {
+    return (
+      <AccessDenied
+        user={user}
+        role={role}
+        targetRoute={route}
+        navigate={navigate}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // 5. Authorized Portal Renderers for the 8 authorized roles
   const r = (role || '').toUpperCase();
   if (r === 'MEMBER') return renderMember();
   if (r === 'RESTAURANT_MANAGER') return renderRestaurant();

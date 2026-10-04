@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@backend/services/supabaseClient.js';
 import { getCourts, createBooking, getBookings } from '@backend/services/bookingService.js';
-import { getCafeTables } from '@backend/services/cafeTableService.js';
+import { getCafeTables, reserveCafeTable } from '@backend/services/cafeTableService.js';
+import { getMemberByClubId } from '@backend/services/memberService.js';
 import { recordReceptionTransaction, logAudit } from '../../services/clubPlatformService.js';
+import ReceiptModal from '../../components/ReceiptModal.jsx';
 import {
   ConciergeBell, Users, UserPlus, CreditCard, DollarSign, Calendar,
-  CheckCircle2, AlertTriangle, RefreshCw, Search, ArrowRight, Shield, QrCode
+  CheckCircle2, AlertTriangle, RefreshCw, Search, ArrowRight, Shield, QrCode, Utensils
 } from 'lucide-react';
 
 export default function ReceptionPortal({ navigate }) {
@@ -60,6 +62,34 @@ export default function ReceptionPortal({ navigate }) {
     details: 'Front desk physical counter billing'
   });
   const [posSubmitting, setPosSubmitting] = useState(false);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Offline Table Booking Form & Club ID verification
+  const [tableBookingClubId, setTableBookingClubId] = useState('');
+  const [tableBookingCustomer, setTableBookingCustomer] = useState(null);
+  const [tableBookingCustomerError, setTableBookingCustomerError] = useState('');
+  const [tableBookingSearching, setTableBookingSearching] = useState(false);
+  const [tableBookingForm, setTableBookingForm] = useState({
+    tableId: '',
+    date: todayStr,
+    time: '19:30',
+    partySize: 2,
+    notes: ''
+  });
+  const [tableBookingSubmitting, setTableBookingSubmitting] = useState(false);
+
+  // Walk-in Club ID search
+  const [walkinClubId, setWalkinClubId] = useState('');
+  const [walkinCustomer, setWalkinCustomer] = useState(null);
+  const [walkinClubIdStatus, setWalkinClubIdStatus] = useState('');
+
+  // POS Club ID search
+  const [posClubId, setPosClubId] = useState('');
+  const [posCustomer, setPosCustomer] = useState(null);
+
+  // Active Receipt Modal
+  const [activeReceipt, setActiveReceipt] = useState(null);
 
   // Member Directory search & filter
   const [dirSearch, setDirSearch] = useState('');
@@ -202,29 +232,33 @@ export default function ReceptionPortal({ navigate }) {
     setFeedback(null);
 
     try {
-      // Find or create walk-in account
+      // Find or link customer account
       let walkinMemberId = null;
-      const walkinEmail = walkinForm.guestEmail.trim().toLowerCase() || `walkin.${Date.now()}@kinesis.club`;
+      if (walkinCustomer) {
+        walkinMemberId = walkinCustomer.id;
+      } else {
+        const walkinEmail = walkinForm.guestEmail.trim().toLowerCase() || `walkin.${Date.now()}@kinesis.club`;
 
-      if (supabase) {
-        const { data: existing } = await supabase.from('members').select('id').eq('email', walkinEmail).maybeSingle();
-        if (existing) {
-          walkinMemberId = existing.id;
-        } else {
-          const newGuest = {
-            name: walkinForm.guestName.trim(),
-            email: walkinEmail,
-            phone: walkinForm.guestPhone.trim(),
-            plan_id: null,
-            user_type: 'WALK_IN',
-            password: 'WalkinPassword123!',
-            status: 'active',
-            role: 'member',
-            start_date: new Date().toISOString().split('T')[0],
-            expiry_date: '2036-01-01'
-          };
-          const { data: created } = await supabase.from('members').insert([newGuest]).select().single();
-          walkinMemberId = created?.id;
+        if (supabase) {
+          const { data: existing } = await supabase.from('members').select('id').eq('email', walkinEmail).maybeSingle();
+          if (existing) {
+            walkinMemberId = existing.id;
+          } else {
+            const newGuest = {
+              name: walkinForm.guestName.trim(),
+              email: walkinEmail,
+              phone: walkinForm.guestPhone.trim(),
+              plan_id: null,
+              user_type: 'WALK_IN',
+              password: 'WalkinPassword123!',
+              status: 'active',
+              role: 'member',
+              start_date: new Date().toISOString().split('T')[0],
+              expiry_date: '2036-01-01'
+            };
+            const { data: created } = await supabase.from('members').insert([newGuest]).select().single();
+            walkinMemberId = created?.id;
+          }
         }
       }
 
@@ -243,7 +277,7 @@ export default function ReceptionPortal({ navigate }) {
 
       // Record transaction
       await recordReceptionTransaction({
-        customerName: walkinForm.guestName,
+        customerName: walkinCustomer ? walkinCustomer.name : walkinForm.guestName,
         referenceType: 'COURT_BOOKING',
         amount: bookingRes.price || 500,
         paymentMethod: walkinForm.paymentMethod,
@@ -251,7 +285,30 @@ export default function ReceptionPortal({ navigate }) {
       });
 
       setFeedback({ type: 'success', text: `Walk-in booking confirmed! Ticket: ${bookingRes.ticket_id || `#KSC-BKG-${bookingRes.id}`}` });
-      logAudit({ userName: 'Priya Mehra', role: 'RECEPTION', action: 'Walk-In Booking', entity: 'Booking', entityId: bookingRes.id, details: `Booked ${bookingRes.courts?.name} for walk-in guest ${walkinForm.guestName}` });
+      logAudit({ userName: 'Priya Mehra', role: 'RECEPTION', action: 'Walk-In Booking', entity: 'Booking', entityId: bookingRes.id, details: `Booked ${bookingRes.courts?.name} for guest ${walkinCustomer ? walkinCustomer.name : walkinForm.guestName} (Club ID: ${walkinCustomer?.club_id || 'N/A'})` });
+
+      // Generate receipt
+      setActiveReceipt({
+        type: 'COURT_BOOKING',
+        data: {
+          id: bookingRes.id,
+          receiptNumber: `#KSC-BKG-${String(bookingRes.id).padStart(4, '0')}`,
+          customerName: walkinCustomer ? walkinCustomer.name : walkinForm.guestName,
+          club_id: walkinCustomer ? walkinCustomer.club_id : 'N/A',
+          customerType: walkinCustomer ? (walkinCustomer.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN') : 'WALK-IN',
+          created_at: new Date().toISOString(),
+          subtotal: bookingRes.price || 500,
+          total: bookingRes.price || 500,
+          payment_method: walkinForm.paymentMethod,
+          payment_status: 'PAID',
+          items: [{
+            name: `${bookingRes.courts?.name || 'Court'} - ${bookingRes.courts?.sport || 'Play'} (${walkinForm.durationMinutes} mins)`,
+            quantity: 1,
+            unitPrice: bookingRes.price || 500,
+            total: bookingRes.price || 500
+          }]
+        }
+      });
 
       setWalkinForm(prev => ({
         ...prev,
@@ -259,6 +316,9 @@ export default function ReceptionPortal({ navigate }) {
         guestPhone: '',
         guestEmail: ''
       }));
+      setWalkinCustomer(null);
+      setWalkinClubId('');
+      setWalkinClubIdStatus('');
       await loadReceptionData();
     } catch (err) {
       setFeedback({ type: 'error', text: err.message || 'Walk-in booking failed.' });
@@ -274,8 +334,9 @@ export default function ReceptionPortal({ navigate }) {
     setFeedback(null);
 
     try {
+      const activeName = posCustomer ? posCustomer.name : posForm.customerName;
       await recordReceptionTransaction({
-        customerName: posForm.customerName,
+        customerName: activeName,
         referenceType: posForm.referenceType,
         amount: posForm.amount,
         paymentMethod: posForm.paymentMethod,
@@ -283,6 +344,30 @@ export default function ReceptionPortal({ navigate }) {
       });
 
       setFeedback({ type: 'success', text: `Transaction recorded successfully. Paid ₹${posForm.amount} via ${posForm.paymentMethod}.` });
+
+      // Generate receipt
+      setActiveReceipt({
+        type: 'POS',
+        data: {
+          id: Date.now() % 10000,
+          receiptNumber: `#KSC-POS-${Date.now().toString().slice(-4)}`,
+          customerName: activeName,
+          club_id: posCustomer ? posCustomer.club_id : (posClubId || 'N/A'),
+          customerType: posCustomer ? (posCustomer.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN') : 'WALK-IN',
+          created_at: new Date().toISOString(),
+          subtotal: Number(posForm.amount),
+          total: Number(posForm.amount),
+          payment_method: posForm.paymentMethod,
+          payment_status: 'PAID',
+          items: [{
+            name: posForm.details || `${posForm.referenceType.replace('_', ' ')} Counter Billing`,
+            quantity: 1,
+            unitPrice: Number(posForm.amount),
+            total: Number(posForm.amount)
+          }]
+        }
+      });
+
       setPosForm({
         customerName: '',
         referenceType: 'COURT_BOOKING',
@@ -290,11 +375,188 @@ export default function ReceptionPortal({ navigate }) {
         paymentMethod: 'UPI',
         details: 'Front desk physical counter billing'
       });
+      setPosCustomer(null);
+      setPosClubId('');
       await loadReceptionData();
     } catch (err) {
       setFeedback({ type: 'error', text: err.message || 'POS sale recording failed.' });
     } finally {
       setPosSubmitting(false);
+    }
+  };
+
+  // 4. Club ID Lookup & Offline Table Booking
+  const handleSearchClubId = async (inputClubId) => {
+    const raw = String(inputClubId !== undefined ? inputClubId : tableBookingClubId).trim();
+    setTableBookingCustomerError('');
+    setTableBookingCustomer(null);
+
+    if (!raw) {
+      setTableBookingCustomerError('Please enter a 10-digit Club ID.');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(raw)) {
+      setTableBookingCustomerError('Club ID must be exactly 10 numeric digits.');
+      return;
+    }
+
+    setTableBookingSearching(true);
+    try {
+      const found = await getMemberByClubId(raw);
+      if (!found) {
+        setTableBookingCustomerError(`No customer found with Club ID: ${raw}`);
+        return;
+      }
+
+      if (found.status && found.status !== 'active') {
+        setTableBookingCustomerError('Customer account is inactive or suspended.');
+        return;
+      }
+
+      setTableBookingCustomer(found);
+      const avail = tables.find(t => t.status === 'AVAILABLE') || tables[0];
+      if (avail && !tableBookingForm.tableId) {
+        setTableBookingForm(prev => ({ ...prev, tableId: String(avail.id) }));
+      }
+    } catch (err) {
+      setTableBookingCustomerError(err.message || 'Error searching Club ID.');
+    } finally {
+      setTableBookingSearching(false);
+    }
+  };
+
+  const handleTableBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!tableBookingCustomer) {
+      setTableBookingCustomerError('Please verify customer by Club ID before confirming booking.');
+      return;
+    }
+
+    setTableBookingSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const selectedTableId = Number(tableBookingForm.tableId) || (tables[0] ? tables[0].id : null);
+      if (!selectedTableId) {
+        throw new Error('Please select a dining table.');
+      }
+
+      const res = await reserveCafeTable({
+        tableId: selectedTableId,
+        customer: tableBookingCustomer,
+        reservationDate: tableBookingForm.date,
+        reservationTime: tableBookingForm.time,
+        partySize: tableBookingForm.partySize,
+        notes: tableBookingForm.notes
+      });
+
+      const tableName = res.table?.table_number || `Table #${selectedTableId}`;
+      setFeedback({
+        type: 'success',
+        text: `Table ${tableName} successfully reserved for ${tableBookingCustomer.name} on ${tableBookingForm.date} at ${tableBookingForm.time}!`
+      });
+
+      logAudit({
+        userName: 'Priya Mehra',
+        role: 'RECEPTION',
+        action: 'Offline Table Booking',
+        entity: 'Table',
+        entityId: selectedTableId,
+        details: `Reserved ${tableName} for ${tableBookingCustomer.name} (Club ID: ${tableBookingCustomer.club_id})`
+      });
+
+      // Generate Table Reservation Receipt
+      setActiveReceipt({
+        type: 'CAFE_BAR',
+        data: {
+          id: res.reservation?.id || Math.floor(1000 + Math.random() * 9000),
+          receiptNumber: `#KSC-TBL-${res.table?.table_number || selectedTableId}`,
+          customerName: tableBookingCustomer.name,
+          club_id: tableBookingCustomer.club_id,
+          customerType: tableBookingCustomer.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN',
+          created_at: new Date().toISOString(),
+          subtotal: 0,
+          total: 0,
+          payment_method: 'CASH',
+          payment_status: 'PAID',
+          items: [{
+            name: `Table Reservation: ${tableName} (${tableBookingForm.partySize} Guests) - ${tableBookingForm.date} @ ${tableBookingForm.time}`,
+            quantity: 1,
+            unitPrice: 0,
+            total: 0
+          }]
+        }
+      });
+
+      // Reset
+      setTableBookingCustomer(null);
+      setTableBookingClubId('');
+      setTableBookingForm({
+        tableId: tables.length > 0 ? String(tables[0].id) : '',
+        date: todayStr,
+        time: '19:30',
+        partySize: 2,
+        notes: ''
+      });
+
+      await loadReceptionData();
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message || 'Table reservation failed.' });
+    } finally {
+      setTableBookingSubmitting(false);
+    }
+  };
+
+  const handleWalkinClubIdChange = async (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setWalkinClubId(digits);
+    if (digits.length === 10) {
+      try {
+        const found = await getMemberByClubId(digits);
+        if (found) {
+          setWalkinCustomer(found);
+          setWalkinForm(prev => ({
+            ...prev,
+            guestName: found.name,
+            guestPhone: found.phone || '',
+            guestEmail: found.email || ''
+          }));
+          setWalkinClubIdStatus(`✓ Found ${found.name} (${found.user_type === 'WALK_IN' ? 'Walk-In' : 'Member'})`);
+        } else {
+          setWalkinCustomer(null);
+          setWalkinClubIdStatus('No customer found with this Club ID');
+        }
+      } catch {
+        setWalkinCustomer(null);
+        setWalkinClubIdStatus('Club ID lookup failed');
+      }
+    } else {
+      setWalkinCustomer(null);
+      setWalkinClubIdStatus('');
+    }
+  };
+
+  const handlePosClubIdChange = async (e) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setPosClubId(digits);
+    if (digits.length === 10) {
+      try {
+        const found = await getMemberByClubId(digits);
+        if (found) {
+          setPosCustomer(found);
+          setPosForm(prev => ({
+            ...prev,
+            customerName: found.name
+          }));
+        } else {
+          setPosCustomer(null);
+        }
+      } catch {
+        setPosCustomer(null);
+      }
+    } else {
+      setPosCustomer(null);
     }
   };
 
@@ -407,6 +669,13 @@ export default function ReceptionPortal({ navigate }) {
           Physical Counter POS
         </button>
         <button 
+          onClick={() => setActiveTab('table-booking')} 
+          style={{ padding: '0.6rem 1.25rem', border: 'none', background: activeTab === 'table-booking' ? 'var(--primary)' : 'transparent', color: activeTab === 'table-booking' ? '#fff' : 'var(--text-muted)', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+        >
+          <Utensils size={15} />
+          Offline Table Booking
+        </button>
+        <button 
           onClick={() => setActiveTab('directory')} 
           style={{ padding: '0.6rem 1.25rem', border: 'none', background: activeTab === 'directory' ? 'var(--primary)' : 'transparent', color: activeTab === 'directory' ? '#fff' : 'var(--text-muted)', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', fontSize: '0.88rem' }}
         >
@@ -428,6 +697,10 @@ export default function ReceptionPortal({ navigate }) {
               </button>
               <button onClick={() => setActiveTab('walkin')} className="btn btn-secondary" style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>Book Court for Walk-In Guest</span>
+                <ArrowRight size={16} />
+              </button>
+              <button onClick={() => setActiveTab('table-booking')} className="btn btn-secondary" style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Reserve Café/Dining Table (Club ID)</span>
                 <ArrowRight size={16} />
               </button>
               <button onClick={() => setActiveTab('pos')} className="btn btn-secondary" style={{ padding: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -574,16 +847,45 @@ export default function ReceptionPortal({ navigate }) {
           </div>
 
           <form onSubmit={handleWalkinBooking} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ background: 'var(--bg-main)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
+                Returning Guest or Member? Look up by 10-Digit Club ID
+              </label>
+              <input 
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Enter 10-digit Club ID to auto-fill"
+                value={walkinClubId}
+                onChange={handleWalkinClubIdChange}
+                className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-mono)' }}
+              />
+              {walkinClubIdStatus && (
+                <span style={{ fontSize: '0.78rem', color: walkinClubIdStatus.includes('✓') ? '#10b981' : '#f59e0b', marginTop: '0.25rem', display: 'block' }}>
+                  {walkinClubIdStatus}
+                </span>
+              )}
+            </div>
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Walk-in Guest Name</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>Customer Name</label>
+                {walkinCustomer && (
+                  <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: walkinCustomer.user_type === 'MEMBER' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)', color: walkinCustomer.user_type === 'MEMBER' ? '#10b981' : '#3b82f6', fontWeight: 700 }}>
+                    {walkinCustomer.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN'} (Read-Only: Verified via Club ID)
+                  </span>
+                )}
+              </div>
               <input 
                 type="text" 
                 required
+                readOnly={Boolean(walkinCustomer)}
                 placeholder="e.g. Samir Khan"
                 value={walkinForm.guestName} 
-                onChange={e => setWalkinForm({ ...walkinForm, guestName: e.target.value })} 
+                onChange={e => !walkinCustomer && setWalkinForm({ ...walkinForm, guestName: e.target.value })} 
                 className="form-input" 
-                style={{ width: '100%', boxSizing: 'border-box' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: walkinCustomer ? 'var(--bg-main)' : undefined, cursor: walkinCustomer ? 'not-allowed' : 'text' }}
               />
             </div>
 
@@ -704,16 +1006,40 @@ export default function ReceptionPortal({ navigate }) {
           </div>
 
           <form onSubmit={handlePosSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ background: 'var(--bg-main)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-muted)' }}>
+                Look up Customer by 10-Digit Club ID
+              </label>
+              <input 
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Enter 10-digit Club ID to auto-fill"
+                value={posClubId}
+                onChange={handlePosClubIdChange}
+                className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'var(--font-mono)' }}
+              />
+            </div>
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Customer / Member Name</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>Customer / Member Name</label>
+                {posCustomer && (
+                  <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: posCustomer.user_type === 'MEMBER' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)', color: posCustomer.user_type === 'MEMBER' ? '#10b981' : '#3b82f6', fontWeight: 700 }}>
+                    {posCustomer.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN'} (Read-Only: Verified via Club ID)
+                  </span>
+                )}
+              </div>
               <input 
                 type="text" 
                 required
+                readOnly={Boolean(posCustomer)}
                 placeholder="e.g. Elena Rostova"
                 value={posForm.customerName} 
-                onChange={e => setPosForm({ ...posForm, customerName: e.target.value })} 
+                onChange={e => !posCustomer && setPosForm({ ...posForm, customerName: e.target.value })} 
                 className="form-input" 
-                style={{ width: '100%', boxSizing: 'border-box' }}
+                style={{ width: '100%', boxSizing: 'border-box', background: posCustomer ? 'var(--bg-main)' : undefined, cursor: posCustomer ? 'not-allowed' : 'text' }}
               />
             </div>
 
@@ -780,6 +1106,195 @@ export default function ReceptionPortal({ navigate }) {
               style={{ padding: '0.85rem', fontWeight: 700, fontSize: '0.98rem', marginTop: '0.5rem' }}
             >
               {posSubmitting ? 'Recording Transaction...' : 'Record Transaction & Print Receipt'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* VIEW: OFFLINE TABLE BOOKING VIA CLUB ID */}
+      {/* ======================================================== */}
+      {activeTab === 'table-booking' && (
+        <div className="card" style={{ maxWidth: '680px', margin: '0 auto', width: '100%', padding: '2.5rem', borderRadius: 'var(--radius-lg)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#b45309', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
+              <Utensils size={16} /> Café & Dining Floor
+            </div>
+            <h2 style={{ fontSize: '1.6rem', margin: '0 0 0.35rem 0' }}>Offline Dining Table Booking</h2>
+            <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+              Reserve café tables for arriving members or registered walk-in guests by searching their 10-digit Club ID.
+            </p>
+          </div>
+
+          {/* STEP 1: 10-Digit Club ID Search */}
+          <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', color: 'var(--text-main)' }}>
+              Enter 10-Digit Customer Club ID *
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <input 
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="e.g. 1000000001"
+                value={tableBookingClubId}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  setTableBookingClubId(val);
+                  if (val.length === 10) {
+                    handleSearchClubId(val);
+                  } else {
+                    setTableBookingCustomer(null);
+                    setTableBookingCustomerError('');
+                  }
+                }}
+                className="form-input"
+                style={{ flex: 1, fontFamily: 'var(--font-mono)', fontSize: '1rem', letterSpacing: '0.05em' }}
+              />
+              <button 
+                type="button" 
+                onClick={() => handleSearchClubId(tableBookingClubId)}
+                disabled={tableBookingSearching || tableBookingClubId.length !== 10}
+                className="btn btn-primary"
+                style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Search size={16} />
+                <span>{tableBookingSearching ? 'Searching...' : 'Search'}</span>
+              </button>
+            </div>
+
+            {tableBookingCustomerError && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertTriangle size={14} />
+                <span>{tableBookingCustomerError}</span>
+              </div>
+            )}
+
+            {/* Auto-populated Verified Customer Info */}
+            {tableBookingCustomer && (
+              <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Customer Name</span>
+                  <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>{tableBookingCustomer.name}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Customer Type</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: tableBookingCustomer.user_type === 'WALK_IN' ? '#3b82f6' : 'var(--primary)' }}>
+                    {tableBookingCustomer.user_type === 'WALK_IN' ? 'WALK-IN GUEST' : `${(tableBookingCustomer.membership_plans?.name || 'MEMBER').toUpperCase()}`}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Account Status</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#10b981' }}>● ACTIVE</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Club ID</span>
+                  <span style={{ fontSize: '0.88rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{tableBookingCustomer.club_id}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* STEP 2: Reservation Details Form */}
+          <form onSubmit={handleTableBookingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Select Café / Dining Table *</label>
+                <select 
+                  value={tableBookingForm.tableId} 
+                  onChange={e => setTableBookingForm({ ...tableBookingForm, tableId: e.target.value })}
+                  className="form-input"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  required
+                >
+                  <option value="">-- Choose Dining Table --</option>
+                  {tables.map(t => {
+                    const isMaint = t.status === 'UNDER_MAINTENANCE';
+                    const isRes = t.status === 'RESERVED';
+                    const isOcc = t.status === 'OCCUPIED';
+                    return (
+                      <option key={t.id} value={t.id} disabled={isMaint}>
+                        {t.table_number} ({t.table_name || 'Dining Area'}) — Cap: {t.capacity} pax {isMaint ? '[MAINTENANCE]' : isRes ? '[RESERVED]' : isOcc ? '[OCCUPIED]' : '[AVAILABLE]'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Party Size (Persons) *</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="20"
+                  required
+                  value={tableBookingForm.partySize} 
+                  onChange={e => setTableBookingForm({ ...tableBookingForm, partySize: Math.max(1, parseInt(e.target.value, 10) || 1) })} 
+                  className="form-input" 
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Reservation Date *</label>
+                <input 
+                  type="date" 
+                  min={todayStr}
+                  required
+                  value={tableBookingForm.date} 
+                  onChange={e => setTableBookingForm({ ...tableBookingForm, date: e.target.value })} 
+                  className="form-input" 
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Reservation Time Slot *</label>
+                <select 
+                  value={tableBookingForm.time} 
+                  onChange={e => setTableBookingForm({ ...tableBookingForm, time: e.target.value })} 
+                  className="form-input" 
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                >
+                  <option value="12:00 PM">12:00 PM (Lunch)</option>
+                  <option value="12:30 PM">12:30 PM</option>
+                  <option value="01:00 PM">01:00 PM</option>
+                  <option value="01:30 PM">01:30 PM</option>
+                  <option value="02:00 PM">02:00 PM</option>
+                  <option value="05:00 PM">05:00 PM (Tea / Evening)</option>
+                  <option value="06:00 PM">06:00 PM</option>
+                  <option value="07:00 PM">07:00 PM (Dinner)</option>
+                  <option value="07:30 PM">07:30 PM</option>
+                  <option value="08:00 PM">08:00 PM</option>
+                  <option value="08:30 PM">08:30 PM</option>
+                  <option value="09:00 PM">09:00 PM</option>
+                  <option value="09:30 PM">09:30 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Special Dining Requests / Notes</label>
+              <textarea 
+                rows="2"
+                placeholder="e.g. Birthday celebration, prefer quiet corner, high chair required..."
+                value={tableBookingForm.notes} 
+                onChange={e => setTableBookingForm({ ...tableBookingForm, notes: e.target.value })} 
+                className="form-input" 
+                style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={tableBookingSubmitting || !tableBookingCustomer}
+              className="btn btn-primary" 
+              style={{ padding: '0.85rem', fontWeight: 700, fontSize: '0.98rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+            >
+              <Utensils size={18} />
+              <span>{tableBookingSubmitting ? 'Validating Availability & Booking...' : 'Confirm Table Booking for Customer'}</span>
             </button>
           </form>
         </div>
@@ -884,6 +1399,15 @@ export default function ReceptionPortal({ navigate }) {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Receipt Modal */}
+      {activeReceipt && (
+        <ReceiptModal
+          receiptType={activeReceipt.type}
+          data={activeReceipt.data}
+          onClose={() => setActiveReceipt(null)}
+        />
       )}
 
     </div>

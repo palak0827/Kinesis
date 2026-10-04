@@ -1,6 +1,6 @@
 import { supabase, shouldUseSupabase, localStore } from './supabaseClient.js';
 import { getProducts } from './inventoryService.js';
-import { getMemberById } from './memberService.js';
+import { getMemberById, getMemberByClubId } from './memberService.js';
 import { createNotification } from './notificationService.js';
 
 /**
@@ -74,7 +74,7 @@ function setPriorityOverride(orderId, priority) {
  * - Deducts product stock EXACTLY ONCE
  * - Records sales revenue in sales table EXACTLY ONCE
  */
-export async function createCafeOrder({ memberId = null, items = [], priority = 'NORMAL' }) {
+export async function createCafeOrder({ memberId = null, clubId = null, items = [], priority = 'NORMAL', paymentMethod = 'CARD' }) {
   const safePriority = String(priority).toUpperCase() === 'URGENT' ? 'URGENT' : 'NORMAL';
 
   // Step 1: Validate member
@@ -82,6 +82,8 @@ export async function createCafeOrder({ memberId = null, items = [], priority = 
   const mId = memberId ? Number(memberId) : null;
   if (mId) {
     member = await getMemberById(mId);
+  } else if (clubId) {
+    member = await getMemberByClubId(clubId);
   }
 
   // Step 2: Validate cart is not empty
@@ -137,7 +139,16 @@ export async function createCafeOrder({ memberId = null, items = [], priority = 
   // CORE BUSINESS RULE: Membership determines pricing/discounts.
   // It NEVER determines inventory priority. Limited resources are allocated FCFS.
   let bar_discount = 0;
-  if (member && member.status === 'active' && member.membership_plans) {
+  let isExpired = false;
+  if (member && member.expiry_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(member.expiry_date);
+    exp.setHours(23, 59, 59, 999);
+    if (today > exp) isExpired = true;
+  }
+  const isWalkIn = member?.user_type === 'WALK_IN';
+  if (member && !isExpired && !isWalkIn && member.status === 'active' && member.membership_plans) {
     bar_discount = Number(member.membership_plans.bar_discount) || 0;
   }
 
@@ -231,6 +242,7 @@ export async function createCafeOrder({ memberId = null, items = [], priority = 
         subtotal: subtotal,
         discount_amount: discountAmount,
         total: finalTotal,
+        payment_method: paymentMethod || 'CARD',
         status: 'NEW',
         priority: safePriority,
         created_at: new Date().toISOString()
@@ -244,15 +256,15 @@ export async function createCafeOrder({ memberId = null, items = [], priority = 
         .single();
 
       if (ordError) {
-        if (ordError.code === '42703' || String(ordError.message || '').includes('priority')) {
-          const { priority: _omit, ...recordWithoutPriority } = orderRecord;
+        if (ordError.code === '42703' || ordError.code === 'PGRST204' || String(ordError.message || '').includes('priority') || String(ordError.message || '').includes('payment_method')) {
+          const { priority: _omit, payment_method: _pm, ...recordWithoutMissingCols } = orderRecord;
           const { data: fbData, error: fbError } = await supabase
             .from('cafe_orders')
-            .insert([recordWithoutPriority])
+            .insert([recordWithoutMissingCols])
             .select()
             .single();
           if (fbError) throw fbError;
-          insertedOrder = { ...fbData, priority: safePriority };
+          insertedOrder = { ...fbData, priority: safePriority, payment_method: paymentMethod || 'CARD' };
         } else {
           throw ordError;
         }
@@ -396,7 +408,7 @@ export async function getKitchenOrders() {
         .from('cafe_orders')
         .select(`
           *,
-          members (id, name, email),
+          members (id, club_id, name, email),
           cafe_order_items (
             id,
             quantity,
@@ -439,7 +451,7 @@ export async function getKitchenOrders() {
       return {
         ...order,
         priority: order.priority || 'NORMAL',
-        members: member ? { id: member.id, name: member.name, email: member.email } : null,
+        members: member ? { id: member.id, club_id: member.club_id, name: member.name, email: member.email } : null,
         cafe_order_items: items
       };
     })

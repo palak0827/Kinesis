@@ -56,12 +56,25 @@ export async function getLowStockProducts() {
  * Add a new product to inventory
  */
 export async function createProduct(productData) {
+  if (!productData.name || !productData.name.trim()) {
+    throw new Error('Product name is required.');
+  }
+  const priceNum = Number(productData.price);
+  if (isNaN(priceNum) || priceNum <= 0) {
+    throw new Error('Product price must be a positive number greater than zero.');
+  }
+  const stockNum = Number(productData.stock_quantity);
+  if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+    throw new Error('Stock quantity must be a non-negative integer (0 or greater).');
+  }
+  const thresholdNum = Number(productData.low_stock_threshold);
+
   const newProduct = {
     name: productData.name.trim(),
-    category: productData.category.trim() || 'General',
-    price: Number(productData.price) || 0,
-    stock_quantity: Math.max(0, parseInt(productData.stock_quantity, 10) || 0),
-    low_stock_threshold: Math.max(1, parseInt(productData.low_stock_threshold, 10) || 5),
+    category: (productData.category || 'General').trim(),
+    price: priceNum,
+    stock_quantity: stockNum,
+    low_stock_threshold: Math.max(1, isNaN(thresholdNum) ? 5 : parseInt(thresholdNum, 10)),
     created_at: new Date().toISOString()
   };
 
@@ -94,9 +107,19 @@ export async function updateProduct(id, productData) {
   const pId = Number(id);
 
   const updates = { ...productData };
-  if (updates.price !== undefined) updates.price = Number(updates.price);
+  if (updates.price !== undefined) {
+    const priceNum = Number(updates.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      throw new Error('Product price must be a positive number greater than zero.');
+    }
+    updates.price = priceNum;
+  }
   if (updates.stock_quantity !== undefined) {
-    updates.stock_quantity = Math.max(0, parseInt(updates.stock_quantity, 10));
+    const stockNum = Number(updates.stock_quantity);
+    if (isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
+      throw new Error('Stock quantity must be a non-negative integer (0 or greater).');
+    }
+    updates.stock_quantity = stockNum;
   }
   if (updates.low_stock_threshold !== undefined) {
     updates.low_stock_threshold = Math.max(1, parseInt(updates.low_stock_threshold, 10));
@@ -140,14 +163,15 @@ export async function updateProduct(id, productData) {
  * - Applies membership shop discount if member is active
  * - Records sale in sales table
  */
-export async function recordSale({ productId, memberId = null, quantity = 1 }) {
+export async function recordSale({ productId, memberId = null, quantity = 1, paymentMethod = 'CARD' }) {
   const pId = Number(productId);
   const mId = memberId ? Number(memberId) : null;
-  const qty = parseInt(quantity, 10) || 1;
+  const numQty = Number(quantity);
 
-  if (qty <= 0) {
-    throw new Error('Sale quantity must be at least 1');
+  if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty)) {
+    throw new Error('Sale quantity must be a positive whole integer greater than zero.');
   }
+  const qty = numQty;
 
   // Get product
   const products = await getProducts();
@@ -167,7 +191,16 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
 
   if (mId) {
     memberDetails = await getMemberById(mId);
-    if (memberDetails && memberDetails.status === 'active' && memberDetails.membership_plans) {
+    let isExpired = false;
+    if (memberDetails && memberDetails.expiry_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const exp = new Date(memberDetails.expiry_date);
+      exp.setHours(23, 59, 59, 999);
+      if (today > exp) isExpired = true;
+    }
+    const isWalkIn = memberDetails?.user_type === 'WALK_IN';
+    if (memberDetails && !isExpired && !isWalkIn && memberDetails.status === 'active' && memberDetails.membership_plans) {
       const isBarItem = product.category === 'Drinks & Nutrition' || product.category === 'Café' || product.category === 'Bar';
       discountPercent = isBarItem
         ? (Number(memberDetails.membership_plans.bar_discount) || 0)
@@ -189,6 +222,8 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
     quantity: qty,
     unit_price: effectiveUnitPrice,
     total,
+    payment_method: paymentMethod || 'CARD',
+    pickup_status: 'PENDING_PICKUP',
     created_at: new Date().toISOString()
   };
 
@@ -201,7 +236,7 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
         .select(`
           *,
           products (id, name, category, price),
-          members (id, name, email)
+          members (id, club_id, name, email)
         `)
         .single();
 
@@ -219,8 +254,6 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
       console.warn('Supabase recordSale error, fallback to local:', err);
     }
   }
-
-
 
   // Local fallback: update product stock
   const pIndex = localStore.products.findIndex((p) => p.id === pId);
@@ -246,6 +279,81 @@ export async function recordSale({ productId, memberId = null, quantity = 1 }) {
   dispatchStockNotifications(product, newStock);
 
   return createdSale;
+}
+
+/**
+ * Update pickup status for an equipment / gear sale with duplicate prevention
+ */
+export async function updateSalePickupStatus(saleId, pickupStatus = 'PICKED_UP') {
+  const numId = Number(saleId);
+  if (!numId) {
+    throw new Error('Valid Sale ID is required for pickup.');
+  }
+
+  // Check existing sale in local store / DB
+  const existingSale = localStore.sales.find((s) => s.id === numId);
+  if (existingSale) {
+    if (existingSale.pickup_status === 'PICKED_UP') {
+      throw new Error(`Sale #${numId} has already been picked up.`);
+    }
+    if (existingSale.status === 'CANCELLED') {
+      throw new Error('Cannot pick up a cancelled sale.');
+    }
+  }
+
+  if (shouldUseSupabase()) {
+    try {
+      const { data: dbSale, error: fetchErr } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('id', numId)
+        .maybeSingle();
+
+      if (dbSale) {
+        if (dbSale.pickup_status === 'PICKED_UP') {
+          throw new Error(`Sale #${numId} has already been picked up.`);
+        }
+        if (dbSale.status === 'CANCELLED') {
+          throw new Error('Cannot pick up a cancelled sale.');
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('sales')
+        .update({
+          pickup_status: pickupStatus,
+          pickup_time: new Date().toISOString()
+        })
+        .eq('id', numId)
+        .select(`
+          *,
+          products (id, name, category, price),
+          members (id, club_id, name, email)
+        `)
+        .single();
+
+      if (!error && data) {
+        if (existingSale) {
+          existingSale.pickup_status = pickupStatus;
+          existingSale.pickup_time = data.pickup_time;
+          localStore.saveSales();
+        }
+        return data;
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('already been picked up')) throw err;
+      console.warn('Supabase updateSalePickupStatus fallback:', err);
+    }
+  }
+
+  if (!existingSale) {
+    throw new Error(`Sale #${numId} not found.`);
+  }
+
+  existingSale.pickup_status = pickupStatus;
+  existingSale.pickup_time = new Date().toISOString();
+  localStore.saveSales();
+  return existingSale;
 }
 
 /**

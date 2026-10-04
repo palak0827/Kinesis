@@ -215,6 +215,8 @@ export default function Shop() {
         id: createdOrder.id,
         receiptNumber: `#KSC-ORD-${String(createdOrder.id).padStart(4, '0')}`,
         customerName: memberProfile?.name || 'Walk-In Guest',
+        club_id: memberProfile?.club_id || 'N/A',
+        customerType: memberProfile?.user_type || (memberProfile?.plan_id ? 'MEMBER' : 'WALK-IN'),
         created_at: new Date().toISOString(),
         subtotal: cartSubtotal,
         discount_amount: cartDiscountAmount,

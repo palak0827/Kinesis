@@ -20,7 +20,6 @@ export default function BookCourt({ navigate }) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [priceInfo, setPriceInfo] = useState(null);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Payment Selection state for Step 4

@@ -146,3 +146,81 @@ export function calculateTableSummary(tables = []) {
     maintenance
   };
 }
+
+/**
+ * Reserve a table for a customer using their Club ID and existing customer record.
+ * Strictly verifies customer, maintenance status, past dates, capacity, and collisions.
+ */
+export async function reserveCafeTable({
+  tableId,
+  customer,
+  reservationDate,
+  reservationTime,
+  partySize,
+  notes = ''
+}) {
+  const tId = Number(tableId);
+  if (!tId) throw new Error('Table selection is required.');
+  if (!customer || !customer.id) throw new Error('Existing customer is required for table reservation.');
+  
+  if (customer.status && customer.status !== 'active') {
+    throw new Error('Cannot reserve table: Customer account is inactive or suspended.');
+  }
+
+  // Date validation
+  if (!reservationDate || !/^\d{4}-\d{2}-\d{2}$/.test(reservationDate)) {
+    throw new Error('Valid reservation date (YYYY-MM-DD) is required.');
+  }
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (reservationDate < todayStr) {
+    throw new Error('Cannot reserve table for a past date.');
+  }
+
+  if (!reservationTime || !reservationTime.trim()) {
+    throw new Error('Reservation time is required.');
+  }
+
+  const pSize = parseInt(partySize, 10);
+  if (isNaN(pSize) || pSize <= 0) {
+    throw new Error('Party size must be a positive integer.');
+  }
+
+  const tables = await getCafeTables();
+  const table = tables.find(t => t.id === tId);
+  if (!table) throw new Error(`Table #${tId} not found.`);
+
+  if (table.status === 'UNDER_MAINTENANCE') {
+    throw new Error(`Table ${table.table_number} is currently under maintenance and cannot be booked.`);
+  }
+
+  if (pSize > table.capacity) {
+    throw new Error(`Party size (${pSize}) exceeds table capacity (${table.capacity}).`);
+  }
+
+  // Check collision: if reserved for the same date and time
+  if (table.status === 'RESERVED' && table.reservation_date === reservationDate && table.reservation_time === reservationTime) {
+    throw new Error(`Table ${table.table_number} is already reserved for ${reservationDate} at ${reservationTime}.`);
+  }
+
+  if (table.status === 'OCCUPIED' && reservationDate === todayStr) {
+    throw new Error(`Table ${table.table_number} is currently occupied.`);
+  }
+
+  const userTypeLabel = customer.user_type === 'WALK_IN' ? 'Walk-In Guest' : `${customer.membership_plans?.name || 'Club'} Member`;
+  const reservationData = {
+    reserved_by: `${customer.name} (${userTypeLabel}) [Club ID: ${customer.club_id || 'N/A'}]`,
+    reservation_date: reservationDate,
+    reservation_time: reservationTime,
+    party_size: pSize,
+    notes: notes ? notes.trim() : `Offline front-desk reservation for ${customer.name}`
+  };
+
+  const updated = await updateTableStatus(tId, 'RESERVED', reservationData);
+  return {
+    success: true,
+    table: updated,
+    customer,
+    reservation: reservationData
+  };
+}

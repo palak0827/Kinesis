@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node src/tests/routeSecurity.test.js && node src/tests/qaScenarios.test.js && node src/tests/phase2Validation.test.js && node src/tests/phase3Workflows.test.js && node src/tests/phase4CrossPortalAudit.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

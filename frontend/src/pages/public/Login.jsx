@@ -1,19 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../AuthContext.jsx';
 import {
-  Users, Briefcase, ArrowRight, AlertTriangle, ShieldCheck, Lock, Mail
+  Users, Briefcase, ArrowRight, AlertTriangle, ShieldCheck, Lock, Mail, Info
 } from 'lucide-react';
+import {
+  getRouteFromPath,
+  isRouteAuthorized,
+  getDefaultRouteForRole,
+  isStaffRoute
+} from '../../utils/routeSecurity.js';
 
 export default function Login({ navigate }) {
   const { login } = useAuth();
 
+  // Read initial redirect and message from sessionStorage
+  const [authNotice, setAuthNotice] = useState(() => {
+    try {
+      return sessionStorage.getItem('kinesis_auth_message') || '';
+    } catch {
+      return '';
+    }
+  });
+
   // ONLY TWO options as required: 'member' or 'staff'
-  const [loginMode, setLoginMode] = useState('member'); // 'member' | 'staff'
+  const [loginMode, setLoginMode] = useState(() => {
+    try {
+      const redirect = sessionStorage.getItem('kinesis_redirect_after_login');
+      if (redirect) {
+        const targetRoute = getRouteFromPath(redirect);
+        if (isStaffRoute(targetRoute)) return 'staff';
+      }
+    } catch {}
+    return 'member';
+  });
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAccessNotAssigned, setIsAccessNotAssigned] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // If there was an auth message, keep it visible until user interacts
+  }, []);
 
   const handleTabSwitch = (mode) => {
     setLoginMode(mode);
@@ -31,27 +60,30 @@ export default function Login({ navigate }) {
 
     try {
       const res = await login(email, password, loginMode);
-      
-      // Determine redirection based on returned role & type
-      if (res?.targetRoute) {
-        navigate(res.targetRoute);
-      } else if (res?.role === 'ADMIN' || res?.type === 'admin') {
-        navigate('admin-dashboard');
-      } else if (res?.role === 'RESTAURANT_MANAGER') {
-        navigate('restaurant-dashboard');
-      } else if (res?.role === 'BAR_MANAGER') {
-        navigate('bar-dashboard');
-      } else if (res?.role === 'SHOP_MANAGER') {
-        navigate('shop-dashboard');
-      } else if (res?.role === 'COURT_MANAGER') {
-        navigate('court-dashboard');
-      } else if (res?.role === 'STAFF_MANAGER') {
-        navigate('staff-dashboard');
-      } else if (res?.role === 'RECEPTION') {
-        navigate('reception-dashboard');
-      } else {
-        navigate('home');
+      const userRole = (res?.role || '').toUpperCase();
+
+      // Check pending redirect from protected route access attempt
+      let pendingRedirect = null;
+      try {
+        pendingRedirect = sessionStorage.getItem('kinesis_redirect_after_login');
+        sessionStorage.removeItem('kinesis_redirect_after_login');
+        sessionStorage.removeItem('kinesis_auth_message');
+      } catch {}
+
+      if (pendingRedirect) {
+        const requestedRoute = getRouteFromPath(pendingRedirect);
+        // STRICT ROLE CHECK: Only redirect to requested route if CURRENT role is authorized
+        if (isRouteAuthorized(userRole, requestedRoute)) {
+          navigate(requestedRoute);
+          return;
+        }
+        // If not authorized (e.g. MEMBER -> /admin), DO NOT go to /admin!
+        // Fall through to default authorized home for the authenticated role.
       }
+
+      // Default redirect to role's authorized portal
+      const targetRoute = getDefaultRouteForRole(userRole);
+      navigate(targetRoute);
     } catch (err) {
       const errMsg = err.message || 'Account not found or credentials are incorrect.';
       if (errMsg.includes('Access Not Assigned')) {
@@ -202,6 +234,26 @@ export default function Login({ navigate }) {
                   Your account has not been assigned an active role yet. Please contact the administrator.
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Authentication & Security Notice */}
+          {authNotice && !error && !isAccessNotAssigned && (
+            <div style={{
+              background: 'rgba(217, 119, 6, 0.1)',
+              color: '#b45309',
+              border: '1px solid rgba(217, 119, 6, 0.3)',
+              padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1.25rem',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              lineHeight: 1.4
+            }}>
+              <Info size={16} color="#b45309" style={{ flexShrink: 0 }} />
+              <span>{authNotice}</span>
             </div>
           )}
 

@@ -9,6 +9,38 @@ import {
 import { getCafeRevenueStats } from '@backend/services/revenueService.js';
 import CurrentDate from '../../components/CurrentDate.jsx';
 
+const ColumnHeader = ({ title, count, color }) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '0.75rem 1rem',
+      background: 'var(--bg-surface)',
+      borderRadius: 'var(--radius-sm)',
+      borderLeft: `4px solid ${color}`,
+      borderTop: '1px solid var(--border-subtle)',
+      borderRight: '1px solid var(--border-subtle)',
+      borderBottom: '1px solid var(--border-subtle)',
+      marginBottom: '1rem'
+    }}
+  >
+    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{title}</span>
+    <span
+      style={{
+        background: color,
+        color: 'white',
+        borderRadius: '12px',
+        padding: '0.15rem 0.55rem',
+        fontSize: '0.75rem',
+        fontWeight: 700
+      }}
+    >
+      {count}
+    </span>
+  </div>
+);
+
 export default function Kitchen() {
   const [activeTab, setActiveTab] = useState('kitchen'); // 'kitchen' or 'sports'
   const [kitchenOrders, setKitchenOrders] = useState([]);
@@ -403,38 +435,6 @@ export default function Kitchen() {
       </div>
     );
   };
-
-  const ColumnHeader = ({ title, count, color }) => (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '0.75rem 1rem',
-        background: 'var(--bg-surface)',
-        borderRadius: 'var(--radius-sm)',
-        borderLeft: `4px solid ${color}`,
-        borderTop: '1px solid var(--border-subtle)',
-        borderRight: '1px solid var(--border-subtle)',
-        borderBottom: '1px solid var(--border-subtle)',
-        marginBottom: '1rem'
-      }}
-    >
-      <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{title}</span>
-      <span
-        style={{
-          background: color,
-          color: 'white',
-          borderRadius: '12px',
-          padding: '0.15rem 0.55rem',
-          fontSize: '0.75rem',
-          fontWeight: 700
-        }}
-      >
-        {count}
-      </span>
-    </div>
-  );
 
   if (loading && kitchenOrders.length === 0 && sportsSales.length === 0) {
     return <div style={{ padding: '2rem' }}>Loading club order streams...</div>;

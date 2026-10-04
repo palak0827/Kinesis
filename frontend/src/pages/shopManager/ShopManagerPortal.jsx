@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getProducts, updateProduct, createProduct, getSalesHistory } from '@backend/services/inventoryService.js';
+import { getProducts, updateProduct, createProduct, getSalesHistory, updateSalePickupStatus } from '@backend/services/inventoryService.js';
 import { getGearRevenueStats } from '@backend/services/revenueService.js';
 import { getProductImage } from '../../utils/productImages.js';
 import { logAudit } from '../../services/clubPlatformService.js';
+import ReceiptModal from '../../components/ReceiptModal.jsx';
 import {
   ShoppingBag, Package, AlertTriangle, CheckCircle2, Plus, RefreshCw,
-  Search, Edit3, X, DollarSign, Clock, ArrowRight, ShieldAlert
+  Search, Edit3, X, DollarSign, Clock, ArrowRight, ShieldAlert, Eye, Printer, CheckCircle
 } from 'lucide-react';
 
 export default function ShopManagerPortal({ navigate }) {
@@ -24,6 +25,13 @@ export default function ShopManagerPortal({ navigate }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+
+  // Operational Sales & Pickup States
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [receiptSale, setReceiptSale] = useState(null);
+  const [salesSearch, setSalesSearch] = useState('');
+  const [salesFilter, setSalesFilter] = useState('ALL');
+  const [pickingUpSaleId, setPickingUpSaleId] = useState(null);
 
   // Edit / Add Modal
   const [modalMode, setModalMode] = useState(null); // 'add' | 'edit' | null
@@ -131,6 +139,31 @@ export default function ShopManagerPortal({ navigate }) {
       await loadData();
     } catch (err) {
       setFeedback({ type: 'error', text: err.message || 'Failed adjusting stock.' });
+    }
+  };
+
+  const handlePickupSale = async (saleId) => {
+    if (pickingUpSaleId) return;
+    setPickingUpSaleId(saleId);
+    try {
+      const updated = await updateSalePickupStatus(saleId, 'PICKED_UP');
+      setFeedback({ type: 'success', text: `Order #SALE-${String(saleId).padStart(4, '0')} successfully marked as PICKED UP.` });
+      logAudit({
+        userName: 'Simran Kaur',
+        role: 'SHOP_MANAGER',
+        action: 'Order Pickup Completed',
+        entity: 'Sale',
+        entityId: saleId,
+        details: `Customer completed pickup of Sale #${saleId}`
+      });
+      await loadData();
+      if (selectedSale && selectedSale.id === saleId) {
+        setSelectedSale(prev => prev ? { ...prev, pickup_status: 'PICKED_UP' } : null);
+      }
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message || 'Pickup update failed.' });
+    } finally {
+      setPickingUpSaleId(null);
     }
   };
 
@@ -351,52 +384,171 @@ export default function ShopManagerPortal({ navigate }) {
       )}
 
       {/* ======================================================== */}
-      {/* VIEW 2: SALES & ORDER PICKUP LOG */}
+      {/* VIEW 2: COMPACT OPERATIONAL SALES & ORDER PICKUP LOG */}
       {/* ======================================================== */}
       {activeTab === 'orders' && (
         <div className="card" style={{ padding: '1.75rem', borderRadius: 'var(--radius-md)' }}>
-          <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1.25rem' }}>Sports Gear Sales & Orders Log</h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Sale ID</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Purchaser</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Product</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Quantity</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Effective Price</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Total</th>
-                  <th style={{ padding: '0.75rem 0.5rem' }}>Date & Time</th>
-                  <th style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map(s => (
-                  <tr key={s.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      #SALE-{String(s.id).padStart(4, '0')}
-                    </td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <div style={{ fontWeight: 600 }}>{s.members?.name || 'Walk-in Counter Guest'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.members?.club_id ? `Club ID: ${s.members.club_id} • ` : ''}{s.members?.email || 'Store POS'}</div>
-                    </td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>{s.products?.name || 'Sports Item'}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{s.quantity}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono)' }}>₹{Number(s.unit_price).toFixed(2)}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>₹{Number(s.total).toFixed(2)}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      {new Date(s.created_at).toLocaleString()}
-                    </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                      <span style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.2rem 0.6rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700 }}>
-                        COMPLETED
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Sports Gear Sales & Order Pickup Log</h3>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Compact operational log. Click any row or 'View' for complete purchaser details, warranty, or receipt.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search sale, customer, Club ID..."
+                  value={salesSearch}
+                  onChange={e => setSalesSearch(e.target.value)}
+                  className="form-input"
+                  style={{ paddingLeft: '28px', fontSize: '0.82rem', width: '220px' }}
+                />
+              </div>
+
+              <select
+                value={salesFilter}
+                onChange={e => setSalesFilter(e.target.value)}
+                className="form-input"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="ALL">All Pickup Statuses</option>
+                <option value="PENDING_PICKUP">PENDING PICKUP</option>
+                <option value="PICKED_UP">PICKED UP</option>
+              </select>
+            </div>
           </div>
+
+          {/* Table */}
+          {(() => {
+            const filteredSales = sales.filter(s => {
+              const q = salesSearch.toLowerCase().trim();
+              const matchesSearch = !q ||
+                String(s.id).includes(q) ||
+                (s.members?.name && s.members.name.toLowerCase().includes(q)) ||
+                (s.members?.club_id && String(s.members.club_id).includes(q)) ||
+                (s.products?.name && s.products.name.toLowerCase().includes(q));
+              const currentStatus = s.pickup_status || 'PICKED_UP';
+              const matchesFilter = salesFilter === 'ALL' || currentStatus === salesFilter;
+              return matchesSearch && matchesFilter;
+            });
+
+            if (filteredSales.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+                  <ShoppingBag size={36} style={{ margin: '0 auto 0.75rem auto', opacity: 0.35, display: 'block' }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>No sales or pickup records found.</p>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem' }}>No orders match your search or filter criteria.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Order / Sale</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Customer</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Club ID</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Item / Product</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Amount</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Payment</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Status</th>
+                      <th style={{ padding: '0.7rem 0.5rem', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSales.map(s => {
+                      const isPickedUp = (s.pickup_status || 'PICKED_UP') === 'PICKED_UP';
+                      const paymentMethod = s.payment_method || 'CARD';
+                      const clubId = s.members?.club_id || 'Counter Guest';
+                      const isPickingUp = pickingUpSaleId === s.id;
+
+                      return (
+                        <tr
+                          key={s.id}
+                          onClick={() => setSelectedSale(s)}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 800 }}>
+                            #SALE-{String(s.id).padStart(4, '0')}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <div style={{ fontWeight: 600 }}>{s.members?.name || 'Walk-in Counter Guest'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.84rem' }}>
+                            {clubId}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <div style={{ fontWeight: 600 }}>{s.products?.name || 'Sports Item'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Qty: {s.quantity}</div>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>
+                            ₹{Number(s.total).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <span style={{ fontSize: '0.74rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', fontWeight: 700 }}>
+                              {paymentMethod}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <span style={{
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              background: isPickedUp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                              color: isPickedUp ? '#10b981' : '#f59e0b'
+                            }}>
+                              {isPickedUp ? 'PICKED UP' : 'PENDING PICKUP'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
+                              {!isPickedUp ? (
+                                <button
+                                  disabled={isPickingUp}
+                                  onClick={() => handlePickupSale(s.id)}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.65rem', fontSize: '0.76rem', background: '#10b981' }}
+                                >
+                                  {isPickingUp ? 'Updating...' : 'Mark Picked Up'}
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.76rem', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <CheckCircle size={13} /> Completed
+                                </span>
+                              )}
+                              <button
+                                onClick={() => setSelectedSale(s)}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                              >
+                                <Eye size={12} /> View
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -516,6 +668,136 @@ export default function ShopManagerPortal({ navigate }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* SALE / ORDER DETAILS MODAL */}
+      {/* ======================================================== */}
+      {selectedSale && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: '520px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-lg)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Gear Sale Details</span>
+                <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.4rem' }}>#SALE-{String(selectedSale.id).padStart(4, '0')}</h3>
+              </div>
+              <button onClick={() => setSelectedSale(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Customer</span>
+                <strong>{selectedSale.members?.name || 'Walk-in Counter Guest'}</strong>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Club ID</span>
+                <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedSale.members?.club_id || 'Walk-In'}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Payment Mode</span>
+                <strong style={{ color: 'var(--primary)' }}>{selectedSale.payment_method || 'CARD'}</strong>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Pickup Status</span>
+                <strong style={{ color: (selectedSale.pickup_status || 'PICKED_UP') === 'PICKED_UP' ? '#10b981' : '#f59e0b' }}>
+                  {selectedSale.pickup_status || 'PICKED_UP'}
+                </strong>
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', marginBottom: '1.25rem', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.5rem 0.75rem' }}>Equipment Item</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '0.55rem 0.75rem', fontWeight: 600 }}>{selectedSale.products?.name || 'Sports Item'}</td>
+                    <td style={{ padding: '0.55rem', textAlign: 'center' }}>{selectedSale.quantity}</td>
+                    <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                      ₹{Number(selectedSale.total).toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', fontWeight: 800, fontSize: '1.1rem' }}>
+              <span>Total Paid:</span>
+              <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>₹{Number(selectedSale.total).toFixed(2)}</span>
+            </div>
+
+            {/* Pickup Action */}
+            {(selectedSale.pickup_status || 'PICKED_UP') !== 'PICKED_UP' && (
+              <button
+                disabled={pickingUpSaleId === selectedSale.id}
+                onClick={() => handlePickupSale(selectedSale.id)}
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '0.65rem', fontSize: '0.9rem', background: '#10b981', marginBottom: '1rem' }}
+              >
+                {pickingUpSaleId === selectedSale.id ? 'Processing Pickup...' : 'Confirm Order Handover & Pickup'}
+              </button>
+            )}
+
+            {/* Print Receipt Action */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setReceiptSale({
+                    id: selectedSale.id,
+                    receiptNumber: `#KSC-GEAR-${String(selectedSale.id).padStart(4, '0')}`,
+                    customerName: selectedSale.members?.name || 'Gear Shop Customer',
+                    club_id: selectedSale.members?.club_id || 'Walk-In',
+                    customerType: selectedSale.members?.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN',
+                    created_at: selectedSale.created_at,
+                    subtotal: selectedSale.total,
+                    discount_amount: 0,
+                    total: selectedSale.total,
+                    payment_method: selectedSale.payment_method || 'CARD',
+                    payment_status: 'PAID',
+                    items: [{
+                      name: selectedSale.products?.name || 'Equipment Item',
+                      quantity: selectedSale.quantity,
+                      unitPrice: selectedSale.unit_price,
+                      total: selectedSale.total
+                    }]
+                  });
+                }}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+              >
+                <Printer size={15} /> Print Receipt
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSale(null)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {receiptSale && (
+        <ReceiptModal
+          receiptType="GEAR_SHOP"
+          data={receiptSale}
+          onClose={() => setReceiptSale(null)}
+        />
       )}
 
     </div>

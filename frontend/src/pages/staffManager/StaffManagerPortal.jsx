@@ -515,7 +515,6 @@ export default function StaffManagerPortal({ navigate }) {
                     <option value="Shop Manager">Shop Manager (SHOP_MANAGER)</option>
                     <option value="Staff Manager">Staff Manager (STAFF_MANAGER)</option>
                     <option value="Reception">Reception (RECEPTION)</option>
-                    <option value="Admin">Administrator (ADMIN)</option>
                     <option value="Kitchen Staff">Kitchen Staff</option>
                     <option value="Court Steward">Court Steward</option>
                     <option value="Security Guard">Security Guard</option>

@@ -48,11 +48,16 @@ export default function PurchaseHistory() {
 
   const handleOpenReceipt = (type, item) => {
     let receiptData = {};
+    const clubId = memberProfile?.club_id || 'N/A';
+    const customerType = memberProfile?.user_type || (memberProfile?.plan_id ? 'MEMBER' : 'WALK-IN');
+
     if (type === 'CAFE_BAR') {
       receiptData = {
         id: item.id,
         receiptNumber: `#KSC-CAFE-${String(item.id).padStart(4, '0')}`,
         customerName: memberProfile?.name || 'Club Member',
+        club_id: clubId,
+        customerType: customerType,
         created_at: item.created_at,
         subtotal: item.subtotal || item.total,
         discount_amount: item.discount_amount || 0,
@@ -72,6 +77,8 @@ export default function PurchaseHistory() {
         id: item.id,
         receiptNumber: `#KSC-GEAR-${String(item.id).padStart(4, '0')}`,
         customerName: memberProfile?.name || 'Club Member',
+        club_id: clubId,
+        customerType: customerType,
         created_at: item.created_at,
         subtotal: item.total,
         discount_amount: 0,
@@ -92,6 +99,8 @@ export default function PurchaseHistory() {
         id: item.id,
         receiptNumber: `#KSC-MEM-${String(item.id).padStart(4, '0')}`,
         customerName: memberProfile?.name || 'Club Member',
+        club_id: clubId,
+        customerType: customerType,
         created_at: item.created_at,
         subtotal: item.amount,
         discount_amount: 0,

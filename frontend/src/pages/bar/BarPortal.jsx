@@ -5,9 +5,10 @@ import { getProducts, updateProduct, createProduct } from '@backend/services/inv
 import { getTodayRevenueBreakdown } from '@backend/services/revenueService.js';
 import { getProductImage } from '../../utils/productImages.js';
 import { logAudit } from '../../services/clubPlatformService.js';
+import ReceiptModal from '../../components/ReceiptModal.jsx';
 import {
   Wine, Coffee, GlassWater, Package, Plus, RefreshCw, CheckCircle2,
-  AlertTriangle, DollarSign, Clock, Search, X, Edit3
+  AlertTriangle, DollarSign, Clock, Search, X, Edit3, Eye, Printer
 } from 'lucide-react';
 
 export default function BarPortal({ navigate }) {
@@ -28,6 +29,13 @@ export default function BarPortal({ navigate }) {
   });
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+
+  // Operational Order Table & Modal States
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [receiptOrder, setReceiptOrder] = useState(null);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
+  const [transitioningOrderId, setTransitioningOrderId] = useState(null);
 
   // New Beverage Modal
   const [addItemModalOpen, setAddItemModalOpen] = useState(false);
@@ -58,7 +66,19 @@ export default function BarPortal({ navigate }) {
         );
       });
       setBeverages(barProducts);
-      setOrders(ordersData || []);
+
+      // Filter orders relevant to Bar (drinks, beverages, mocktails)
+      const barOrders = (ordersData || []).filter(o => {
+        const items = o.cafe_order_items || o.items || [];
+        if (items.length === 0) return true;
+        return items.some(it => {
+          const cat = (it.products?.category || it.category || it.products?.name || it.name || '').toLowerCase();
+          return cat.includes('drink') || cat.includes('mocktail') || cat.includes('coffee') ||
+                 cat.includes('beverage') || cat.includes('bar') || cat.includes('nutrition') ||
+                 cat.includes('shake') || cat.includes('cooler') || cat.includes('tea');
+        });
+      });
+      setOrders(barOrders);
       setTables(tablesData || []);
 
       const outOfStock = barProducts.filter(p => Number(p.stock_quantity) === 0).length;
@@ -105,13 +125,20 @@ export default function BarPortal({ navigate }) {
   };
 
   const handleOrderStatus = async (orderId, newStatus) => {
+    if (transitioningOrderId) return;
+    setTransitioningOrderId(orderId);
     try {
       await updateOrderStatus(orderId, newStatus);
       setFeedback({ type: 'success', text: `Bar order #${orderId} moved to ${newStatus}.` });
       logAudit({ userName: 'Arun Nair', role: 'BAR_MANAGER', action: 'Order Status Update', entity: 'Bar Order', entityId: orderId, details: `Moved to ${newStatus}` });
       await loadBarData();
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
     } catch (e) {
       setFeedback({ type: 'error', text: e.message || 'Status transition error.' });
+    } finally {
+      setTransitioningOrderId(null);
     }
   };
 
@@ -230,57 +257,188 @@ export default function BarPortal({ navigate }) {
       </div>
 
       {/* ======================================================== */}
-      {/* VIEW 1: BAR ORDER QUEUE */}
+      {/* VIEW 1: COMPACT OPERATIONAL BAR ORDER TABLE */}
       {/* ======================================================== */}
       {activeTab === 'dashboard' && (
         <div className="card" style={{ padding: '1.75rem', borderRadius: 'var(--radius-md)' }}>
-          <h3 style={{ margin: '0 0 1.25rem 0', fontSize: '1.25rem' }}>Bar Tickets & Drink Service Queue</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-            {orders.map(o => (
-              <div key={o.id} className="card" style={{ padding: '1.25rem', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid #d97706', background: 'var(--bg-main)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800 }}>#BAR-{o.id}</span>
-                  <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 700, background: o.status === 'COMPLETED' ? 'rgba(16,185,129,0.15)' : 'rgba(217,119,6,0.15)', color: o.status === 'COMPLETED' ? '#10b981' : '#b45309' }}>
-                    {o.status}
-                  </span>
-                </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Bar Tickets & Drink Service Queue</h3>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Compact operational log. Click any row or 'View' for ticket recipe & billing details.
+              </p>
+            </div>
 
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                  Guest: <strong>{o.members?.name || 'Walk-in Table'}</strong> • Total: <strong style={{ color: 'var(--primary)' }}>₹{Number(o.total).toFixed(2)}</strong>
-                </div>
-
-                <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-                  {(o.cafe_order_items || []).map((it, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                      <span>{it.products?.name || 'Beverage Item'}</span>
-                      <strong>× {it.quantity}</strong>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {o.status === 'NEW' && (
-                    <button onClick={() => handleOrderStatus(o.id, 'PREPARING')} className="btn btn-primary" style={{ flex: 1, padding: '0.45rem', fontSize: '0.8rem', background: '#d97706' }}>
-                      Start Pouring
-                    </button>
-                  )}
-                  {o.status === 'PREPARING' && (
-                    <button onClick={() => handleOrderStatus(o.id, 'READY')} className="btn btn-primary" style={{ flex: 1, padding: '0.45rem', fontSize: '0.8rem', background: '#3b82f6' }}>
-                      Ready at Bar
-                    </button>
-                  )}
-                  {o.status === 'READY' && (
-                    <button onClick={() => handleOrderStatus(o.id, 'COMPLETED')} className="btn btn-primary" style={{ flex: 1, padding: '0.45rem', fontSize: '0.8rem', background: '#10b981' }}>
-                      Served to Guest
-                    </button>
-                  )}
-                  {o.status === 'COMPLETED' && (
-                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>✓ Served & Billed</span>
-                  )}
-                </div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search order, customer, Club ID..."
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  className="form-input"
+                  style={{ paddingLeft: '28px', fontSize: '0.82rem', width: '220px' }}
+                />
               </div>
-            ))}
+
+              <select
+                value={orderStatusFilter}
+                onChange={e => setOrderStatusFilter(e.target.value)}
+                className="form-input"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="NEW">NEW</option>
+                <option value="PREPARING">PREPARING</option>
+                <option value="READY">READY</option>
+                <option value="COMPLETED">COMPLETED</option>
+              </select>
+            </div>
           </div>
+
+          {/* Table */}
+          {(() => {
+            const filtered = orders.filter(o => {
+              const q = orderSearch.toLowerCase().trim();
+              const matchesSearch = !q ||
+                String(o.id).includes(q) ||
+                (o.members?.name && o.members.name.toLowerCase().includes(q)) ||
+                (o.members?.club_id && String(o.members.club_id).includes(q));
+              const matchesStatus = orderStatusFilter === 'ALL' || o.status === orderStatusFilter;
+              return matchesSearch && matchesStatus;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+                  <Wine size={36} style={{ margin: '0 auto 0.75rem auto', opacity: 0.35, display: 'block' }} />
+                  <p style={{ margin: 0, fontWeight: 600 }}>No bar orders found.</p>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.82rem' }}>No tickets match your search or filter criteria.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Order</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Customer</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Club ID</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Items</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Amount</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Payment</th>
+                      <th style={{ padding: '0.7rem 0.5rem' }}>Status</th>
+                      <th style={{ padding: '0.7rem 0.5rem', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(o => {
+                      const itemCount = (o.cafe_order_items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+                      const paymentMethod = o.payment_method || 'CARD';
+                      const clubId = o.members?.club_id || 'Walk-In';
+                      const isTransitioning = transitioningOrderId === o.id;
+
+                      return (
+                        <tr
+                          key={o.id}
+                          onClick={() => setSelectedOrder(o)}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 800 }}>
+                            #BAR-{String(o.id).padStart(4, '0')}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <div style={{ fontWeight: 600 }}>{o.members?.name || 'Walk-in Guest'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.84rem' }}>
+                            {clubId}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <span style={{ background: 'var(--bg-main)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 600 }}>
+                              {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--primary)' }}>
+                            ₹{Number(o.total).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <span style={{ fontSize: '0.74rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'var(--bg-main)', border: '1px solid var(--border-subtle)', fontWeight: 700 }}>
+                              {paymentMethod}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem' }}>
+                            <span style={{
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              background: o.status === 'COMPLETED' ? 'rgba(16, 185, 129, 0.15)' : o.status === 'PREPARING' ? 'rgba(245, 158, 11, 0.15)' : o.status === 'READY' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                              color: o.status === 'COMPLETED' ? '#10b981' : o.status === 'PREPARING' ? '#f59e0b' : o.status === 'READY' ? '#3b82f6' : '#64748b'
+                            }}>
+                              {o.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.7rem 0.5rem', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'inline-flex', gap: '0.4rem', alignItems: 'center' }}>
+                              {o.status === 'NEW' && (
+                                <button
+                                  disabled={isTransitioning}
+                                  onClick={() => handleOrderStatus(o.id, 'PREPARING')}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.3rem 0.65rem', fontSize: '0.76rem' }}
+                                >
+                                  {isTransitioning ? 'Updating...' : 'Start Pouring'}
+                                </button>
+                              )}
+                              {o.status === 'PREPARING' && (
+                                <button
+                                  disabled={isTransitioning}
+                                  onClick={() => handleOrderStatus(o.id, 'READY')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.65rem', fontSize: '0.76rem', background: '#3b82f6' }}
+                                >
+                                  {isTransitioning ? 'Updating...' : 'Ready'}
+                                </button>
+                              )}
+                              {o.status === 'READY' && (
+                                <button
+                                  disabled={isTransitioning}
+                                  onClick={() => handleOrderStatus(o.id, 'COMPLETED')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.3rem 0.65rem', fontSize: '0.76rem', background: '#10b981' }}
+                                >
+                                  {isTransitioning ? 'Updating...' : 'Complete'}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setSelectedOrder(o)}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.76rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                              >
+                                <Eye size={12} /> View
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -471,6 +629,158 @@ export default function BarPortal({ navigate }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* ORDER DETAILS MODAL */}
+      {/* ======================================================== */}
+      {selectedOrder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '1rem' }}>
+          <div className="card" style={{ maxWidth: '520px', width: '100%', padding: '2rem', borderRadius: 'var(--radius-lg)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Bar Ticket Details</span>
+                <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.4rem' }}>#BAR-{String(selectedOrder.id).padStart(4, '0')}</h3>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Customer</span>
+                <strong>{selectedOrder.members?.name || 'Walk-in Table Guest'}</strong>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Club ID</span>
+                <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedOrder.members?.club_id || 'Walk-In'}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Payment Method</span>
+                <strong style={{ color: 'var(--primary)' }}>{selectedOrder.payment_method || 'CARD'}</strong>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Current Status</span>
+                <strong style={{ color: '#d97706' }}>{selectedOrder.status}</strong>
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', marginBottom: '1.25rem', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-main)', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.5rem 0.75rem' }}>Drink Recipe</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedOrder.cafe_order_items || []).map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '0.55rem 0.75rem', fontWeight: 600 }}>{it.products?.name || 'Beverage Item'}</td>
+                      <td style={{ padding: '0.55rem', textAlign: 'center' }}>{it.quantity}</td>
+                      <td style={{ padding: '0.55rem 0.75rem', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                        ₹{Number(it.total || (it.unit_price * it.quantity)).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', fontWeight: 800, fontSize: '1.1rem' }}>
+              <span>Total Bill:</span>
+              <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>₹{Number(selectedOrder.total).toFixed(2)}</span>
+            </div>
+
+            {/* Status Transition Actions */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              {selectedOrder.status === 'NEW' && (
+                <button
+                  disabled={transitioningOrderId === selectedOrder.id}
+                  onClick={() => handleOrderStatus(selectedOrder.id, 'PREPARING')}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', background: '#d97706' }}
+                >
+                  {transitioningOrderId === selectedOrder.id ? 'Updating...' : 'Start Pouring'}
+                </button>
+              )}
+              {selectedOrder.status === 'PREPARING' && (
+                <button
+                  disabled={transitioningOrderId === selectedOrder.id}
+                  onClick={() => handleOrderStatus(selectedOrder.id, 'READY')}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', background: '#3b82f6' }}
+                >
+                  {transitioningOrderId === selectedOrder.id ? 'Updating...' : 'Mark Ready'}
+                </button>
+              )}
+              {selectedOrder.status === 'READY' && (
+                <button
+                  disabled={transitioningOrderId === selectedOrder.id}
+                  onClick={() => handleOrderStatus(selectedOrder.id, 'COMPLETED')}
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', background: '#10b981' }}
+                >
+                  {transitioningOrderId === selectedOrder.id ? 'Updating...' : 'Confirm Served'}
+                </button>
+              )}
+            </div>
+
+            {/* Print Receipt Action */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setReceiptOrder({
+                    id: selectedOrder.id,
+                    receiptNumber: `#KSC-BAR-${String(selectedOrder.id).padStart(4, '0')}`,
+                    customerName: selectedOrder.members?.name || 'Bar Lounge Guest',
+                    club_id: selectedOrder.members?.club_id || 'Walk-In',
+                    customerType: selectedOrder.members?.user_type === 'MEMBER' ? 'MEMBER' : 'WALK-IN',
+                    created_at: selectedOrder.created_at,
+                    subtotal: selectedOrder.subtotal || selectedOrder.total,
+                    discount_amount: selectedOrder.discount_amount || 0,
+                    total: selectedOrder.total,
+                    payment_method: selectedOrder.payment_method || 'CARD',
+                    payment_status: 'PAID',
+                    items: (selectedOrder.cafe_order_items || []).map(it => ({
+                      name: it.products?.name || 'Drink',
+                      quantity: it.quantity,
+                      unitPrice: it.unit_price,
+                      total: it.total
+                    }))
+                  });
+                }}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+              >
+                <Printer size={15} /> Print Receipt
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {receiptOrder && (
+        <ReceiptModal
+          receiptType="CAFE_BAR"
+          data={receiptOrder}
+          onClose={() => setReceiptOrder(null)}
+        />
       )}
 
     </div>

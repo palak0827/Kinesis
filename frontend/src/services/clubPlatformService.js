@@ -271,8 +271,41 @@ export async function getStaffList() {
 }
 
 export async function createStaffMember(staffData) {
+  const cleanName = (staffData.name || '').trim();
+  if (!cleanName) throw new Error('Staff name is required.');
+  if (/\d/.test(cleanName)) throw new Error('Staff name cannot contain numbers.');
+  if (!staffData.email || !staffData.email.trim()) throw new Error('Staff email is required.');
+
+  const normalizedEmail = staffData.email.trim().toLowerCase();
+  const existingList = await getStaffList();
+  const duplicate = existingList.find(s => s.email && s.email.toLowerCase() === normalizedEmail);
+  if (duplicate) {
+    throw new Error('A staff member with this email already exists.');
+  }
+
+  const salaryNum = Number(staffData.salary);
+  if (isNaN(salaryNum) || salaryNum <= 0) {
+    throw new Error('Salary must be a positive number greater than zero.');
+  }
+
+  if (!staffData.role || !staffData.role.trim()) {
+    throw new Error('Staff role assignment is required.');
+  }
+
+  const targetRole = String(staffData.role || '').toUpperCase();
+  if (targetRole === 'ADMIN' || targetRole === 'ADMINISTRATOR' || targetRole === 'ADMIN (EXECUTIVE)') {
+    throw new Error('Unauthorized privilege escalation: Staff Manager cannot create or assign the ADMIN role.');
+  }
+
+  if (!staffData.department || !staffData.department.trim()) {
+    throw new Error('Staff department is required.');
+  }
+
   const newStaff = {
     ...staffData,
+    name: cleanName,
+    email: normalizedEmail,
+    salary: salaryNum,
     created_at: new Date().toISOString()
   };
 
@@ -288,7 +321,9 @@ export async function createStaffMember(staffData) {
         dispatchStaffCreatedNotifications(data);
         return data;
       }
-    } catch {}
+    } catch (e) {
+      if (e.message && e.message.includes('already exists')) throw e;
+    }
   }
 
   const list = getLocal(KEYS.STAFF, DEFAULT_STAFF);
@@ -303,6 +338,36 @@ export async function createStaffMember(staffData) {
 }
 
 export async function updateStaffMember(id, updates) {
+  if (updates.salary !== undefined) {
+    const salaryNum = Number(updates.salary);
+    if (isNaN(salaryNum) || salaryNum <= 0) {
+      throw new Error('Salary must be a positive number greater than zero.');
+    }
+    updates.salary = salaryNum;
+  }
+
+  if (updates.email) {
+    const normalizedEmail = updates.email.trim().toLowerCase();
+    const existingList = await getStaffList();
+    const duplicate = existingList.find(s => s.id !== Number(id) && s.email && s.email.toLowerCase() === normalizedEmail);
+    if (duplicate) {
+      throw new Error('Another staff member with this email already exists.');
+    }
+    updates.email = normalizedEmail;
+  }
+
+  if (updates.name) {
+    updates.name = updates.name.trim();
+    if (/\d/.test(updates.name)) throw new Error('Staff name cannot contain numbers.');
+  }
+
+  if (updates.role) {
+    const targetRole = String(updates.role).toUpperCase();
+    if (targetRole === 'ADMIN' || targetRole === 'ADMINISTRATOR' || targetRole === 'ADMIN (EXECUTIVE)') {
+      throw new Error('Unauthorized privilege escalation: Staff Manager cannot promote to the ADMIN role.');
+    }
+  }
+
   if (shouldUseSupabase()) {
     try {
       const { data, error } = await supabase
@@ -316,7 +381,9 @@ export async function updateStaffMember(id, updates) {
         dispatchStaffUpdatedNotifications(id, data, updates);
         return data;
       }
-    } catch {}
+    } catch (e) {
+      if (e.message && e.message.includes('already exists')) throw e;
+    }
   }
 
   const list = getLocal(KEYS.STAFF, DEFAULT_STAFF);
