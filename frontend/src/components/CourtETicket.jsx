@@ -156,7 +156,7 @@ Thank you for choosing Kinesis Sports Club!
         </div>
 
         {/* Status Badge */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -175,6 +175,23 @@ Thank you for choosing Kinesis Sports Club!
             {isCancelled ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
             <span>{isCancelled ? 'BOOKING CANCELLED' : 'BOOKING CONFIRMED'}</span>
           </div>
+
+          {booking.payment_status === 'PENDING' && (
+            <div
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                color: '#b45309',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                textAlign: 'center'
+              }}
+            >
+              Payment Pending — Pay at Reception
+            </div>
+          )}
         </div>
 
         {/* Ticket Details Grid */}
@@ -222,8 +239,8 @@ Thank you for choosing Kinesis Sports Club!
             <div style={{ fontWeight: 700, marginTop: '0.2rem' }}>
               {booking.payment_method || 'UPI / Card'}
             </div>
-            <div style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
-              {booking.payment_status || 'PAID'}
+            <div style={{ fontSize: '0.82rem', color: booking.payment_status === 'PENDING' ? '#d97706' : '#10b981', fontWeight: 700 }}>
+              {booking.payment_status === 'PENDING' ? 'Payment Pending — Pay at Reception' : (booking.payment_status || 'PAID')}
             </div>
           </div>
         </div>

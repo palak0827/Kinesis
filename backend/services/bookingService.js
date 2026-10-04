@@ -436,6 +436,15 @@ export async function createBooking(params = {}) {
   // Rule 5 & 6: Centrally calculate price with duration multiplier
   const priceCalc = await calculateBookingPrice(cId, mId, bookingDuration);
 
+  const safePaymentMethod = ['CASH', 'CARD', 'UPI'].includes(String(paymentMethod).toUpperCase())
+    ? String(paymentMethod).toUpperCase()
+    : 'CARD';
+  const safePaymentStatus = safePaymentMethod === 'CASH'
+    ? 'PENDING'
+    : (['PAID', 'PENDING'].includes(String(paymentStatus).toUpperCase()) ? String(paymentStatus).toUpperCase() : 'PAID');
+
+  const ticketId = `KIN-CT-${bookingDate.replace(/-/g, '')}-${String(mId).padStart(4, '0')}`;
+
   const newBooking = {
     member_id: mId,
     court_id: cId,
@@ -444,6 +453,9 @@ export async function createBooking(params = {}) {
     end_time: endTime.length === 5 ? `${endTime}:00` : endTime,
     price: priceCalc.finalPrice,
     status: 'confirmed',
+    payment_method: safePaymentMethod,
+    payment_status: safePaymentStatus,
+    ticket_id: ticketId,
     created_at: new Date().toISOString()
   };
 
@@ -464,6 +476,21 @@ export async function createBooking(params = {}) {
           if (!rpcRes.success) {
             throw new Error(rpcRes.message || 'This time slot was just booked by another customer. Please choose another slot.');
           }
+
+          // Persist payment_method, payment_status, and ticket_id on the newly created booking
+          try {
+            await supabase
+              .from('bookings')
+              .update({
+                payment_method: safePaymentMethod,
+                payment_status: safePaymentStatus,
+                ticket_id: ticketId
+              })
+              .eq('id', rpcRes.booking_id);
+          } catch (updateErr) {
+            console.warn('Could not update payment status on RPC booking:', updateErr);
+          }
+
           // Fetch full joined booking details
           const { data: bData } = await supabase
             .from('bookings')
@@ -482,11 +509,14 @@ export async function createBooking(params = {}) {
             .single();
 
           if (bData) {
-            return {
+            const rpcFinal = {
               ...bData,
-              payment_method: paymentMethod,
-              payment_status: paymentStatus
+              payment_method: safePaymentMethod,
+              payment_status: safePaymentStatus,
+              ticket_id: bData.ticket_id || ticketId
             };
+            dispatchBookingCreatedNotifications(rpcFinal, bData.members, bData.courts);
+            return rpcFinal;
           }
         }
       } catch (rpcEx) {
@@ -519,6 +549,29 @@ export async function createBooking(params = {}) {
         if (error.code === '23505' || String(error.message).includes('unique') || String(error.message).includes('idx_unique_court_slot')) {
           throw new Error('This time slot was just booked by another customer. Please choose another slot.');
         }
+        if (error.code === '42703' || String(error.message).includes('column')) {
+          const { payment_method: _pm, payment_status: _ps, ticket_id: _tid, ...legacyRecord } = newBooking;
+          const { data: fbData, error: fbErr } = await supabase.from('bookings').insert([legacyRecord]).select(`
+            *,
+            members (
+              id,
+              name,
+              email,
+              status,
+              membership_plans (id, name, court_discount, daily_booking_limit)
+            ),
+            courts (id, name, sport, hourly_rate)
+          `).single();
+          if (fbErr) throw fbErr;
+          const legacyFinal = {
+            ...fbData,
+            payment_method: safePaymentMethod,
+            payment_status: safePaymentStatus,
+            ticket_id: ticketId
+          };
+          dispatchBookingCreatedNotifications(legacyFinal, legacyFinal.members, legacyFinal.courts);
+          return legacyFinal;
+        }
         throw error;
       }
 
@@ -544,8 +597,9 @@ export async function createBooking(params = {}) {
       if (data) {
         const finalBooking = {
           ...data,
-          payment_method: paymentMethod,
-          payment_status: paymentStatus
+          payment_method: safePaymentMethod,
+          payment_status: safePaymentStatus,
+          ticket_id: data.ticket_id || ticketId
         };
         dispatchBookingCreatedNotifications(finalBooking, data.members, data.courts);
         return finalBooking;
@@ -727,5 +781,69 @@ export async function cancelBooking(bookingId) {
 
   dispatchBookingCancelledNotifications(bId, localStore.bookings[index]);
   return localStore.bookings[index];
+}
+
+/**
+ * Reception Confirmation for Cash Payments:
+ * Transitions CASH booking from PENDING to PAID.
+ * Idempotent: Rejects second confirmation if already PAID.
+ * Updates both bookings and payments records.
+ * Never creates duplicate bookings.
+ */
+export async function confirmCashBookingPayment(bookingId) {
+  const bId = Number(bookingId);
+  if (!bId) throw new Error('Valid Booking ID is required.');
+
+  // Check existing booking
+  const allBookings = await getBookings();
+  const existing = allBookings.find(b => b.id === bId);
+  if (!existing) {
+    throw new Error(`Booking #${bId} not found.`);
+  }
+
+  if (existing.payment_status === 'PAID') {
+    throw new Error(`Payment for Booking #${bId} has already been confirmed as PAID.`);
+  }
+
+  if (shouldUseSupabase()) {
+    try {
+      await supabase.from('bookings').update({ payment_status: 'PAID' }).eq('id', bId);
+      try {
+        await supabase.from('payments').update({ payment_status: 'PAID' }).eq('reference_id', bId).eq('reference_type', 'COURT_BOOKING');
+      } catch {}
+    } catch (e) {
+      console.warn('Supabase confirmCashBookingPayment fallback to local:', e);
+    }
+  }
+
+  // LocalStore sync
+  const localB = localStore.bookings.find(b => b.id === bId);
+  if (localB) {
+    localB.payment_status = 'PAID';
+    localStore.saveBookings();
+  }
+
+  // Update local payments in localStorage if present
+  if (typeof window !== 'undefined') {
+    try {
+      const paymentsKey = 'kinesis_local_payments';
+      const storedPayments = JSON.parse(window.localStorage.getItem(paymentsKey) || '[]');
+      let changed = false;
+      for (const p of storedPayments) {
+        if (Number(p.reference_id) === bId && p.reference_type === 'COURT_BOOKING') {
+          p.payment_status = 'PAID';
+          changed = true;
+        }
+      }
+      if (changed) {
+        window.localStorage.setItem(paymentsKey, JSON.stringify(storedPayments));
+      }
+    } catch {}
+  }
+
+  return {
+    ...existing,
+    payment_status: 'PAID'
+  };
 }
 

@@ -579,8 +579,17 @@ export default function ReceptionPortal({ navigate }) {
   const handleConfirmCashPayment = async (booking) => {
     try {
       const bId = Number(booking.id);
+      if (booking.payment_status === 'PAID') {
+        setFeedback({ type: 'error', text: `Payment for Booking #${bId} is already confirmed as PAID.` });
+        return;
+      }
       if (supabase) {
         await supabase.from('bookings').update({ payment_status: 'PAID' }).eq('id', bId);
+        try {
+          await supabase.from('payments').update({ payment_status: 'PAID' }).eq('reference_id', bId).eq('reference_type', 'COURT_BOOKING');
+        } catch (pErr) {
+          console.warn('Payment audit update fallback:', pErr);
+        }
       }
       setBookings(prev => prev.map(b => b.id === bId ? { ...b, payment_status: 'PAID' } : b));
       setFeedback({ type: 'success', text: `Cash payment of ₹${booking.price || 0} confirmed for Booking #${bId} (${booking.members?.name || 'Customer'})! Marked as PAID.` });

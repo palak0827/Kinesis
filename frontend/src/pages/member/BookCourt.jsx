@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@backend/services/supabaseClient.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { checkCourtAvailability, createBooking, calculateBookingPrice, checkMemberDailyLimit } from '@backend/services/bookingService.js';
 import { recordPayment } from '@backend/services/paymentService.js';
 import CourtETicket from '../../components/CourtETicket.jsx';
-import { CreditCard, QrCode, Banknote, ShieldCheck } from 'lucide-react';
+import PaymentMethodSelector from '../../components/PaymentMethodSelector.jsx';
+import { validatePaymentForm, normalizeCardNumber } from '../../utils/paymentValidation.js';
 
 export default function BookCourt({ navigate }) {
   const { memberProfile } = useAuth();
@@ -22,10 +23,11 @@ export default function BookCourt({ navigate }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Payment Selection state for Step 4
   const [paymentMethod, setPaymentMethod] = useState('UPI'); // 'CASH', 'CARD', 'UPI'
   const [cardData, setCardData] = useState({ name: '', number: '', expiry: '', cvv: '' });
   const [upiId, setUpiId] = useState('');
+  const [paymentErrors, setPaymentErrors] = useState({});
+  const isSubmittingRef = useRef(false);
 
   // Generated confirmed ticket modal
   const [completedBooking, setCompletedBooking] = useState(null);
@@ -175,10 +177,15 @@ export default function BookCourt({ navigate }) {
     setStep(4);
   };
 
+  const calculatedFinalPrice = Number(
+    priceInfo?.finalPrice ??
+    priceInfo?.basePrice ??
+    (Number(selectedCourt?.hourly_rate || 0) * (duration / 30))
+  );
+
   const handleConfirm = async () => {
-    if (submitting) return; // Prevent duplicate rapid clicks
+    if (submitting || isSubmittingRef.current) return; // Prevent duplicate rapid clicks
     setError('');
-    setSuccessMessage('');
 
     if (!memberProfile?.id) {
       setError('Unable to identify the active account. Please log in again.');
@@ -195,26 +202,38 @@ export default function BookCourt({ navigate }) {
       return;
     }
 
-    // Payment validation
-    if (paymentMethod === 'CARD') {
-      if (!cardData.name.trim() || !cardData.number || !cardData.expiry || !cardData.cvv) {
-        setError('Please complete all card payment details.');
-        return;
-      }
-    } else if (paymentMethod === 'UPI') {
-      if (!upiId.trim() || !upiId.includes('@')) {
-        setError('Please enter a valid UPI ID (e.g. member@okhdfcbank).');
-        return;
-      }
+    // Centralized Payment validation
+    const validation = validatePaymentForm({
+      paymentMethod,
+      cardData,
+      upiId
+    });
+
+    if (!validation.isValid) {
+      setPaymentErrors(validation.errors);
+      const firstError = Object.values(validation.errors)[0];
+      if (firstError) setError(firstError);
+      return;
     }
+    setPaymentErrors({});
 
     try {
+      isSubmittingRef.current = true;
       setSubmitting(true);
       const end = calculateEndTime(time, duration);
 
-      const paymentStatus = paymentMethod === 'CASH' ? 'PENDING' : 'PAID';
+      // Revalidate court availability before processing payment
+      const availCheck = await checkCourtAvailability(selectedCourt.id, date, time, end);
+      if (!availCheck.available) {
+        setError(availCheck.reason || 'This time slot is no longer available. Please choose another slot.');
+        setStep(3);
+        return;
+      }
 
-      // 1. Server-side double-validation against race conditions & limits
+      const paymentStatus = paymentMethod === 'CASH' ? 'PENDING' : 'PAID';
+      const normalizedCardNum = paymentMethod === 'CARD' ? normalizeCardNumber(cardData.number) : '';
+
+      // 1. Create the booking exactly once
       const created = await createBooking({
         memberId: memberProfile.id,
         courtId: selectedCourt.id,
@@ -231,7 +250,7 @@ export default function BookCourt({ navigate }) {
         memberId: memberProfile.id,
         referenceType: 'COURT_BOOKING',
         referenceId: created.id,
-        amount: priceInfo?.finalPrice ?? priceInfo?.basePrice ?? selectedCourt.hourly_rate,
+        amount: calculatedFinalPrice,
         paymentMethod,
         paymentStatus,
         paymentDetails: {
@@ -240,24 +259,31 @@ export default function BookCourt({ navigate }) {
           duration: `${duration} Minutes`,
           date,
           time,
-          endTime: end
+          endTime: end,
+          cardLast4: normalizedCardNum ? normalizedCardNum.slice(-4) : undefined,
+          upiId: paymentMethod === 'UPI' ? upiId : undefined
         }
       });
 
-      // 3. Show Court E-Ticket Modal immediately (Phase 10)
+      // 3. Clear sensitive temporary fields
+      setCardData({ name: '', number: '', expiry: '', cvv: '' });
+      setUpiId('');
+      setPaymentErrors({});
+
+      // 4. Show Court E-Ticket Modal immediately
       setCompletedBooking({
         ...created,
         courts: selectedCourt,
         members: memberProfile,
         payment_method: paymentMethod,
-        payment_status: paymentStatus
+        payment_status: paymentStatus,
+        price: calculatedFinalPrice
       });
     } catch (err) {
       console.error('Booking confirmation error:', err);
       const msg = (err.message || '').toLowerCase();
       if (msg.includes('booked') || msg.includes('unavailable') || msg.includes('another customer')) {
         setError("This time slot was just booked by another customer. Please choose another slot.");
-        // Refresh slot availability immediately so user sees the newly booked slot
         if (selectedCourt?.id && date) {
           try {
             const { data: latestBookings } = await supabase
@@ -276,6 +302,7 @@ export default function BookCourt({ navigate }) {
         setError(err.message || 'Unable to create booking. Please try again.');
       }
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -567,128 +594,45 @@ export default function BookCourt({ navigate }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.25rem', fontWeight: 800, fontSize: '1.3rem' }}>
               <span>Final Price:</span>
               <span style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                ₹{Number(priceInfo?.finalPrice ?? priceInfo?.basePrice ?? 0).toFixed(2)}
+                ₹{calculatedFinalPrice.toFixed(2)}
               </span>
             </div>
           </div>
 
-          {/* Payment Method Selector */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-              Choose Payment Method
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
-              {[
-                { id: 'CASH', label: 'Cash', icon: Banknote, desc: 'Pay at Counter' },
-                { id: 'CARD', label: 'Card', icon: CreditCard, desc: 'Debit / Credit' },
-                { id: 'UPI', label: 'UPI', icon: QrCode, desc: 'Instant VPA' }
-              ].map((item) => {
-                const Icon = item.icon;
-                const isSelected = paymentMethod === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(item.id)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      padding: '0.9rem 0.5rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
-                      background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-main)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Icon size={20} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} style={{ marginBottom: '0.25rem' }} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
-                      {item.label}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Card Simulation Inputs */}
-            {paymentMethod === 'CARD' && (
-              <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <input
-                  type="text"
-                  placeholder="Cardholder Name"
-                  value={cardData.name}
-                  onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
-                  className="input-field"
-                  style={{ width: '100%' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Card Number (e.g. 4532 •••• •••• 8901)"
-                  value={cardData.number}
-                  onChange={(e) => setCardData({ ...cardData, number: e.target.value })}
-                  className="input-field"
-                  style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <input
-                    type="text"
-                    placeholder="MM/YY"
-                    value={cardData.expiry}
-                    onChange={(e) => setCardData({ ...cardData, expiry: e.target.value })}
-                    className="input-field"
-                    style={{ width: '100%' }}
-                  />
-                  <input
-                    type="password"
-                    maxLength={4}
-                    placeholder="CVV"
-                    value={cardData.cvv}
-                    onChange={(e) => setCardData({ ...cardData, cvv: e.target.value })}
-                    className="input-field"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <ShieldCheck size={14} color="var(--primary)" />
-                  <span>Card simulation — sensitive data is not permanently stored.</span>
-                </div>
-              </div>
-            )}
-
-            {/* UPI Simulation Input */}
-            {paymentMethod === 'UPI' && (
-              <div style={{ background: 'var(--bg-main)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
-                <input
-                  type="text"
-                  placeholder="Enter UPI ID (e.g. user@okhdfcbank)"
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
-                />
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                  <ShieldCheck size={14} color="var(--primary)" />
-                  <span>Never share or enter your UPI PIN.</span>
-                </div>
-              </div>
-            )}
-
-            {/* Cash Simulation Note */}
-            {paymentMethod === 'CASH' && (
-              <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Your court reservation will be confirmed with payment status <strong>PENDING</strong>. Please pay ₹{Number(priceInfo?.finalPrice ?? priceInfo?.basePrice ?? selectedCourt?.hourly_rate).toFixed(2)} at the reception desk upon arrival.
-              </div>
-            )}
-          </div>
+          {/* Centralized Payment Method Selector */}
+          <PaymentMethodSelector
+            paymentMethod={paymentMethod}
+            onSelectMethod={(method) => {
+              setPaymentMethod(method);
+              setPaymentErrors({});
+              setError('');
+            }}
+            cardData={cardData}
+            onCardChange={(newCardData) => {
+              setCardData(newCardData);
+              if (Object.keys(paymentErrors).length > 0) {
+                setPaymentErrors({});
+              }
+            }}
+            upiId={upiId}
+            onUpiChange={(newUpi) => {
+              setUpiId(newUpi);
+              if (paymentErrors.upiId) {
+                setPaymentErrors(prev => ({ ...prev, upiId: undefined }));
+              }
+            }}
+            errors={paymentErrors}
+            finalPrice={calculatedFinalPrice}
+          />
 
           <button
+            id="confirm-reserve-court-btn"
             onClick={handleConfirm}
             disabled={submitting}
             className="btn btn-primary"
             style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', fontWeight: 700 }}
           >
-            {submitting ? 'Confirming Reservation...' : `Confirm & Reserve Court (₹${Number(priceInfo?.finalPrice ?? priceInfo?.basePrice ?? selectedCourt?.hourly_rate).toFixed(2)})`}
+            {submitting ? 'Processing...' : `Confirm & Reserve Court (₹${calculatedFinalPrice.toFixed(2)})`}
           </button>
         </div>
       )}

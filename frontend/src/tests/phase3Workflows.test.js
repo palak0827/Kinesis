@@ -118,10 +118,11 @@ async function runSuite() {
   }
 
   // Successful valid reservation
+  const testReservationDate = new Date(Date.now() + 86400000 * (10 + (Date.now() % 500))).toISOString().split('T')[0];
   const validReservation = await reserveCafeTable({
     tableId: availableTable.id,
     customer: member,
-    reservationDate: '2026-11-20',
+    reservationDate: testReservationDate,
     reservationTime: '19:30',
     partySize: 2,
     notes: 'Dinner reservation'

@@ -200,11 +200,13 @@ export async function createCafeOrder({ memberId = null, clubId = null, items = 
         }
         return {
           id: rpcResult.order_id,
+          member_id: member ? member.id : null,
           subtotal: rpcResult.subtotal,
           discount_amount: rpcResult.discount_amount,
           total: rpcResult.total,
           status: 'NEW',
           priority: safePriority,
+          payment_method: paymentMethod || 'CARD',
           members: member ? { id: member.id, name: member.name, email: member.email } : null
         };
       }
@@ -430,23 +432,29 @@ export async function getKitchenOrders() {
         `)
         .order('created_at', { ascending: true });
 
-      if (error && (error.code === '42703' || String(error.message).includes('club_id'))) {
+      if (error && (error.code === '42703' || error.code === 'PGRST200' || String(error.message).includes('club_id') || String(error.message).includes('relationship'))) {
         const retry = await supabase
           .from('cafe_orders')
           .select(`
             *,
-            members (id, name, email),
-            cafe_order_items (
-              id,
-              quantity,
-              unit_price,
-              total,
-              products (id, name, category)
-            )
+            cafe_order_items (*)
           `)
           .order('created_at', { ascending: true });
-        data = retry.data;
-        error = retry.error;
+        if (!retry.error && retry.data) {
+          const prods = await getProducts();
+          const pMap = new Map(prods.map(p => [p.id, p]));
+          data = (retry.data || []).map(o => ({
+            ...o,
+            cafe_order_items: (o.cafe_order_items || []).map(item => ({
+              ...item,
+              products: pMap.get(item.product_id) || null
+            }))
+          }));
+          error = null;
+        } else {
+          data = retry.data;
+          error = retry.error;
+        }
       }
 
       if (!error && data) {
@@ -536,21 +544,11 @@ export async function updateOrderStatus(orderId, newStatus) {
 
   if (shouldUseSupabase()) {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('cafe_orders')
         .update({ status: targetStatus })
         .eq('id', oId)
-        .select(`
-          *,
-          members (id, name, email),
-          cafe_order_items (
-            id,
-            quantity,
-            unit_price,
-            total,
-            products (id, name, category)
-          )
-        `)
+        .select()
         .single();
 
       if (!error && data) {
